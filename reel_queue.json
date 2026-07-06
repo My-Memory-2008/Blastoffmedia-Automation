@@ -1,6 +1,11 @@
-
 {
   "queue": [
+    {
+      "url": "https://youtube.com/shorts/8go-idzWupU?si=-IzpFqYX-XBA9pk_",
+      "username": "shorts",
+      "notes": "Auto-added from reels_source.txt",
+      "added_at": "2026-07-06T15:17:06.960918+00:00"
+    }
   ],
   "processed": [
     {
@@ -8,12 +13,12 @@
       "username": "trywithmark",
       "status": "in_progress",
       "started_at": "2026-05-19T16:22:08.111381+00:00"
-    }]
-  ,
+    }
+  ],
   "metadata": {
     "total_queued": 1,
     "total_processed": 0,
-    "last_run": "2026-07-06T11:30:31.311822+00:00",
+    "last_run": "2026-07-06T15:17:06.960993+00:00",
     "next_scheduled": null
   }
 }
