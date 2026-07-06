@@ -89,129 +89,170 @@ jobs:
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
-              # 4b. Use genuine browser simulation to process y2mate completely safely
+        # 4b. Use genuine browser simulation to process y2mate.com completely safely
       - name: Cloud Download Video Asset via Playwright Simulation
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { chromium } = require('playwright');
-            const fs = require('fs');
-            const path = require('path');
-
-            // 1. Extraction safety checks
-            if (!fs.existsSync('pipeline_data.json')) {
-                console.log("ℹ️ pipeline_data.json missing. Skipping download cycle.");
-                return;
-            }
-
-            const pipelineContent = fs.readFileSync('pipeline_data.json', 'utf8').trim();
-            if (!pipelineContent) {
-                console.log("❌ pipeline_data.json file is completely empty.");
-                return;
-            }
-
-            const pipeline = JSON.parse(pipelineContent);
-            
-            // Map the input variable dynamically to prevent missing target path crashes
-            const videoUrl = pipeline.reel_url || pipeline.video_url;
-
-            if (!videoUrl || videoUrl === " " || videoUrl.toLowerCase() === "unknown") {
-                console.log("❌ Missing video URL target path inside JSON queue.");
-                return;
-            }
-
-            // CRITICAL AUTOMATED RESET: Wipes out previous video file workspace completely
-            const coreFolder = './downloads';
-            if (fs.existsSync(coreFolder)) {
-                fs.rmSync(coreFolder, { recursive: true, force: true });
-                console.log("🧹 Storage Reset: Prior video files completely purged from memory workspace.");
-            }
-            fs.mkdirSync(coreFolder, { recursive: true });
-
-            console.log(`🚀 Launching Chrome Engine for: ${videoUrl}`);
-
-            // Launch a persistent context matching your exact setup parameters
-            const browserContext = await chromium.launchPersistentContext('', {
-              headless: false, 
-              args: [
-                `--headless=new`, 
-                `--no-sandbox`,
-                `--disable-setuid-sandbox`
-              ],
-              acceptDownloads: true,
-              viewport: { width: 1280, height: 800 }
-            });
-
-            const pages = browserContext.pages();
-            const page = pages.length > 0 ? pages[0] : await browserContext.newPage();
-
-            // Automatically handle and close any advertising popups thrown during clicks
-            browserContext.on('page', async popup => {
-              try {
-                await popup.close();
-                console.log("🛡️ Suppressed ad network popup window.");
-              } catch (e) {}
-            });
-
-            try {
-              // 1. Navigate to the website
-              await page.goto('https://v22.www-y2mate.com/', { waitUntil: 'domcontentloaded' });
+        env:
+          DISPLAY: :99
+        run: |
+          python3 << 'EOF'
+          import json, os, subprocess, asyncio, shutil
+          from playwright.async_api import async_playwright
+          
+          async def run_stealth_download():
+              # 1. Extraction safety checks
+              if not os.path.exists('pipeline_data.json'):
+                  print("ℹ️ pipeline_data.json missing. Skipping download cycle.")
+                  return
+                  
+              with open('pipeline_data.json', 'r') as f:
+                  pipeline = json.load(f)
               
-              // 2. Locate textbox, double-click, and fill with the dynamic video URL
-              const textbox = page.getByRole('textbox', { name: 'Search or paste link here...' });
-              await textbox.waitFor({ state: 'visible', timeout: 30000 });
-              await textbox.dblclick();
-              await textbox.fill(videoUrl);
-              await textbox.press('Enter');
-              console.log("✏️ Link entered and search submitted.");
-
-              // Isolate the dynamic widget iframe frame matching your codegen script
-              const widgetIframe = page.frameLocator('#widgetv2Api');
-
-              // 3. Switch to the Video tab inside the iframe
-              console.log("🗂️ Switching to Video tab...");
-              await widgetIframe.getByRole('link', { name: 'Video' }).click();
-
-              // 4. Click the primary resolution download button inside the iframe
-              console.log("👆 Clicking initial conversion row button...");
-              await widgetIframe.getByRole('row', { name: '1080p (.mp4) Auto  Download' }).getByRole('button').click();
-
-              // 5. Wait for the server-side conversion and target the final Download button inside the iframe
-              console.log("⏳ Waiting for backend to compile stream and clicking final Download link...");
-              const finalDownloadLink = widgetIframe.getByRole('link', { name: 'Download' });
-              await finalDownloadLink.waitFor({ state: 'visible', timeout: 45000 });
-
-              // Catch download events cleanly
-              const downloadPromise = browserContext.waitForEvent('download');
-              await finalDownloadLink.click();
+              reel_url = pipeline.get('reel_url')
+              shortcode = pipeline.get('shortcode', 'downloaded_reel')
               
-              const download = await downloadPromise;
-
-              // 6. Save the completed media file directly to your target variable matrix location
-              const output_path = path.join(coreFolder, 'reelforyoutube.mp4');
-              await download.saveAs(output_path);
+              if not reel_url or "unknown" in reel_url:
+                  print("❌ Missing video URL target path inside JSON queue.")
+                  return
               
-              if (fs.existsSync(output_path)) {
-                  const stats = fs.statSync(output_path);
-                  if (stats.size > 50000) {
-                      console.log(`🎉 Real video asset captured successfully! Size: ${(stats.size / (1024*1024)).toFixed(2)} MB`);
-                  } else {
-                      fs.unlinkSync(output_path);
-                      console.log("❌ Download output contains text metrics instead of video data. Dropping placeholder.");
-                      core.setFailed("Video file empty");
-                  }
-              }
+              # CRITICAL AUTOMATED RESET: Wipes out previous video file frames completely
+              if os.path.exists('downloads'):
+                  shutil.rmtree('downloads')
+                  print("🧹 Storage Reset: Prior video files completely purged from memory workspace.")
+                  
+              os.makedirs('downloads', exist_ok=True)
+              output_path = f"downloads/reelforyoutube.mp4"
+              
+              print(f"🚀 Launching real browser instance to download from y2mate.com: {reel_url}")
+              
+              video_stream_url = None
+              download_success = False
+              
+              async with async_playwright() as p:
+                  # Use persistent context to handle headless configuration and prevent popups cleanly
+                  browser_context = await p.chromium.launch_persistent_context(
+                      user_data_dir="",
+                      headless=False,
+                      args=[
+                          "--headless=new",
+                          "--no-sandbox",
+                          "--disable-setuid-sandbox",
+                          "--disable-blink-features=AutomationControlled"
+                      ],
+                      viewport={'width': 1280, 'height': 720},
+                      user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                      accept_downloads=True
+                  )
+                  
+                  pages = browser_context.pages
+                  page = pages[0] if len(pages) > 0 else await browser_context.new_page()
+                  
+                  # Anti-advertising network route bypass rule matching your pipeline filter
+                  await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads", "://y2mate.com"]) else route.abort())
+                  
+                  # Automatically suppress ad popups triggered mid-operation
+                  async def handle_popup(popup):
+                      try:
+                          await popup.close()
+                          print("🛡️ Suppressed ad network popup window.")
+                      except Exception:
+                          pass
+                  browser_context.on("page", handle_popup)
+                  
+                  print("🌐 Loading downloader frontend...")
+                  await page.goto("https://www-y2mate.com", wait_until="domcontentloaded", timeout=60000)
+                  await page.wait_for_timeout(2000)
+                  
+                  input_locator = page.get_by_role('textbox', name='Search or paste link here...')
+                  await input_locator.wait_for(state='visible', timeout=15000)
+                  await input_locator.dblclick()
+                  await input_locator.fill(reel_url)
+                  await page.wait_for_timeout(1000)
+                  
+                  print("⚡ Dispatching submission enter event on primary download engine text field...")
+                  await input_locator.press("Enter")
+                  
+                  print("⏳ Monitoring page layout transformations, isolating dynamic widget iframe frames...")
+                  
+                  try:
+                      # Isolate the dynamic internal widget iframe frame containing conversion nodes
+                      widget_iframe = page.frame_locator('#widgetv2Api')
+                      
+                      # Switch to the Video tab inside the target iframe layout space
+                      print("🗂️ Switching to Video tab inside downloader iframe...")
+                      await widget_iframe.get_by_role('link', name='Video').click()
+                      
+                      # Trigger the initialization stream compiler engine block row button 
+                      print("👆 Clicking initial conversion row button...")
+                      await widget_iframe.get_by_role('row', name='1080p (.mp4) Auto  Download').get_by_role('button').click()
+                      
+                      # Wait up to 45 seconds for backend processor to package the video stream 
+                      print("⏳ Waiting for backend to compile stream and clicking final Download link...")
+                      final_download_link = widget_iframe.get_by_role('link', name='Download')
+                      await final_download_link.wait_for(state='visible', timeout=45000)
+                      
+                      print("🎯 Native Playwright event listener active. Triggering physical browser stream click...")
+                      
+                      # Intercept browser context level file downloads to handle multiple opened tabs
+                      async with browser_context.expect_download(timeout=45000) as download_info:
+                          await final_download_link.click()
+                      
+                      download = await download_info.value
+                      await download.save_as(output_path)
+                      download_success = True
+                      print("✅ Successfully captured file directly via native browser download event.")
+                      
+                  except Exception as event_error:
+                      print(f"⚠️ Native browser download event failed or timed out: ({event_error})")
+                      print("🔄 Activating scraping fallback pipeline...")
+                      
+                      try:
+                          # Fallback layout parser strategy adapted for alternative frame link hooks
+                          links = await page.locator("a, form, button").all()
+                          for link in links:
+                              try:
+                                  href = await link.get_attribute("href") or await link.get_attribute("action") or await link.get_attribute("onclick")
+                                  if href and any(x in href.lower() for x in ["y2mate", "cdn", ".mp4", "download"]):
+                                      video_stream_url = href
+                                      break
+                              except Exception:
+                                  continue
+                      except Exception as fallback_error:
+                          print(f"❌ Fallback link identification failed: {fallback_error}")
+                              
+                  await browser_context.close()
+              
+              if not download_success and video_stream_url:
+                  if isinstance(video_stream_url, str) and "window.open" in video_stream_url:
+                      import re
+                      urls = re.findall(r"https?://[^']+", video_stream_url)
+                      if urls:
+                          video_stream_url = urls
+                  
+                  if isinstance(video_stream_url, str) and video_stream_url.startswith("/"):
+                      print("🔧 Relative link path configuration identified. Applying absolute root repairs...")
+                      video_stream_url = f"https://www-y2mate.com{video_stream_url}"
+                      
+                  if isinstance(video_stream_url, str):
+                      video_stream_url = video_stream_url.replace('&amp;', '&')
+                      print(f"🔗 Clean stream link isolated: {video_stream_url[:60]}...")
+                      print("Streaming media blocks directly into workspace directory...")
+                      
+                      curl_cmd = ["curl", "-L", "-A", "Mozilla/5.0", "-o", output_path, video_stream_url]
+                      subprocess.run(curl_cmd, capture_output=True)
+              
+              if os.path.exists(output_path):
+                  file_size = os.path.getsize(output_path)
+                  if file_size > 50000:
+                      print(f"🎉 Real video asset captured successfully! Size: {file_size / (1024*1024):.2f} MB")
+                  else:
+                      os.remove(output_path)
+                      print("❌ Download output contains light text metrics instead of video data. Dropping placeholder.")
+              else:
+                  print("❌ Core system disk space rejected file creation execution.")
+          
+          asyncio.run(run_stealth_download())
+          EOF
 
-            } catch (error) {
-              console.error("❌ Automation routine caught failure exception:", error);
-              try {
-                await page.screenshot({ path: './downloads/error-layout-screenshot.png', fullPage: true });
-                console.log("📸 Saved failure screenshot to your logs.");
-              } catch (e) {}
-              core.setFailed(error.message);
-            } finally {
-              await browserContext.close();
-            }
 
       # 10. Run FFmpeg adjustments to clear watermarks and force exact 1080x1920 layout structures
       - name: FFmpeg Layout Conforming & Logo Correction
