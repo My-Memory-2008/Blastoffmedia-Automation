@@ -89,7 +89,7 @@ jobs:
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
-            # 4b. Use genuine browser simulation to process y2mate completely safely
+        # 4b. Use genuine browser simulation to process y2mate completely safely
       - name: Cloud Download Video Asset via Playwright Simulation
         env:
           DISPLAY: :99
@@ -99,19 +99,26 @@ jobs:
           from playwright.async_api import async_playwright
           
           async def run_stealth_download():
-              # 1. Extraction safety checks
+              # 1. Extraction safety checks with JSON validation fix
               if not os.path.exists('pipeline_data.json'):
                   print("ℹ️ pipeline_data.json missing. Skipping download cycle.")
                   return
-                  
-              with open('pipeline_data.json', 'r') as f:
-                  pipeline = json.load(f)
               
-              reel_url = pipeline.get('reel_url')
+              pipeline = {}
+              try:
+                  with open('pipeline_data.json', 'r') as f:
+                      content = f.read().strip()
+                      if content:
+                          pipeline = json.loads(content)
+              except json.JSONDecodeError:
+                  print("⚠️ Warning: pipeline_data.json was blank or malformed. Re-initializing clean tracking state.")
+              
+              # Fallback variables matching your queue names exactly to prevent runtime errors
+              reel_url = pipeline.get('reel_url') or pipeline.get('video_url')
               shortcode = pipeline.get('shortcode', 'downloaded_reel')
               
-              if not reel_url or "unknown" in reel_url:
-                  print("❌ Missing video URL target path inside JSON queue.")
+              if not reel_url or "unknown" in str(reel_url).lower() or reel_url == " ":
+                  print("❌ Missing video URL target path inside JSON queue or file is empty.")
                   return
               
               # CRITICAL AUTOMATED RESET: Wipes out previous video file frames completely
@@ -122,9 +129,8 @@ jobs:
               os.makedirs('downloads', exist_ok=True)
               output_path = f"downloads/reelforyoutube.mp4"
               
-              print(f"🚀 Launching real browser instance to download from v22.www-y2mate.com: {reel_url}")
+              print(f"🚀 Launching real browser instance to download from ://www-y2mate.com: {reel_url}")
               
-              video_stream_url = None
               download_success = False
               
               async with async_playwright() as p:
@@ -141,21 +147,21 @@ jobs:
                   
                   # Handle array element conversion for page selection
                   pages = context.pages
-                  page = pages[0] if len(pages) > 0 else await context.new_page()
+                  page = pages if len(pages) > 0 else await context.new_page()
                   
                   # Suppress ad network popup windows natively
                   context.on('page', lambda popup: asyncio.create_task(popup.close()) if print("🛡️ Suppressed ad network popup window.") or True else None)
                   await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads"]) else route.abort())
                   
                   print("🌐 Loading downloader frontend...")
-                  await page.goto('https://v22.www-y2mate.com/', wait_until='domcontentloaded', timeout=60000)
+                  await page.goto('https://://www-y2mate.com/', wait_until='domcontentloaded', timeout=60000)
                   await page.wait_for_timeout(2000)
                   
                   # Paste link matching target layout textbox structures
                   textbox = page.get_by_role('textbox', name='Search or paste link here...')
                   await textbox.wait_for(state='visible', timeout=30000)
                   await textbox.dblclick()
-                  await textbox.fill(reel_url)
+                  await textbox.fill(str(reel_url).strip())
                   await textbox.press('Enter')
                   print("✏️ Link entered and search submitted.")
                   
@@ -200,7 +206,6 @@ jobs:
           
           asyncio.run(run_stealth_download())
           EOF
-
 
       # 10. Run FFmpeg adjustments to clear watermarks and force exact 1080x1920 layout structures
       - name: FFmpeg Layout Conforming & Logo Correction
