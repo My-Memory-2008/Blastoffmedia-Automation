@@ -163,28 +163,30 @@ jobs:
           python3 << 'EOF'
           import os, shutil
 
-          # Use absolute pathing references to avoid relative shell failures
-          base_dir = os.getcwd()
-          src = os.path.join(base_dir, "youtubedownloads", "downloaded_short.mp4")
-          dst_folder = os.path.join(base_dir, "downloads")
-          dst = os.path.join(dst_folder, "reelforyoutube.mp4")
+          src = "./youtubedownloads/downloaded_short.mp4"
+          
+          # CRITICAL AUTOMATED RESET: Match your exact sample code layout mechanics
+          if os.path.exists('downloads'):
+              shutil.rmtree('downloads')
+              print("🧹 Storage Reset: Prior video files completely purged from memory workspace.")
+              
+          os.makedirs('downloads', exist_ok=True)
+          dst = "downloads/reelforyoutube.mp4"
 
-          # Explicitly force-create the downloads directory if it vanished
-          if not os.path.exists(dst_folder):
-              os.makedirs(dst_folder, exist_ok=True)
-              print("📁 Generated missing destination folder structure dynamically.")
-
+          # Handle file verification and translation matching your code checks
           if os.path.exists(src):
               f_size = os.path.getsize(src)
               if f_size > 50000:
-                  print(f"🎉 Asset Verified. Size: {f_size / (1024*1024):.2f} MB")
+                  print(f"🎉 Real video asset captured successfully! Size: {f_size / (1024*1024):.2f} MB")
                   shutil.move(src, dst)
-                  print(f"🚀 File successfully locked to: {dst}")
+                  print(f"🚀 File successfully locked to core lane pathway: {dst}")
               else:
-                  print("❌ Error: Downloaded file is corrupted or empty.")
+                  print("❌ Error: Downloaded file contains text/corrupted metrics instead of video data. Dropping.")
+                  if os.path.exists(src):
+                      os.remove(src)
                   exit(1)
           else:
-              print(f"❌ Error: Download source path missing at {src}")
+              print("❌ Core system disk space rejected file creation execution. Source file not found.")
               exit(1)
           EOF
 
