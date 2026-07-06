@@ -162,19 +162,29 @@ jobs:
         run: |
           python3 << 'EOF'
           import os, shutil
-          src = "./youtubedownloads/downloaded_short.mp4"
-          dst = "./downloads/reelforyoutube.mp4"
+
+          # Use absolute pathing references to avoid relative shell failures
+          base_dir = os.getcwd()
+          src = os.path.join(base_dir, "youtubedownloads", "downloaded_short.mp4")
+          dst_folder = os.path.join(base_dir, "downloads")
+          dst = os.path.join(dst_folder, "reelforyoutube.mp4")
+
+          # Explicitly force-create the downloads directory if it vanished
+          if not os.path.exists(dst_folder):
+              os.makedirs(dst_folder, exist_ok=True)
+              print("📁 Generated missing destination folder structure dynamically.")
 
           if os.path.exists(src):
               f_size = os.path.getsize(src)
               if f_size > 50000:
                   print(f"🎉 Asset Verified. Size: {f_size / (1024*1024):.2f} MB")
                   shutil.move(src, dst)
+                  print(f"🚀 File successfully locked to: {dst}")
               else:
                   print("❌ Error: Downloaded file is corrupted or empty.")
                   exit(1)
           else:
-              print("❌ Error: Download target path missing.")
+              print(f"❌ Error: Download source path missing at {src}")
               exit(1)
           EOF
 
