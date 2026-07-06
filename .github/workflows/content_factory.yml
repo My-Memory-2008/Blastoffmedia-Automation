@@ -120,7 +120,8 @@ jobs:
             });
 
             const pages = browserContext.pages();
-            const page = pages.length > 0 ? pages : await browserContext.newPage();
+            // FIX APPLIED HERE: Added indices [0] to select the page element instead of the collection array
+            const page = pages.length > 0 ? pages[0] : await browserContext.newPage();
 
             browserContext.on('page', async popup => {
               try { await popup.close(); console.log("🛡️ Closed ad tab."); } catch (e) {}
@@ -156,6 +157,7 @@ jobs:
             } finally {
               await browserContext.close();
             }
+
 
       # 9. Verify data integrity and translate file over to editing block
       - name: Workspace File Alignment & Verification
