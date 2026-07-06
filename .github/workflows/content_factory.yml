@@ -1,102 +1,93 @@
-name: Content Factory Orchestrator - Part 1
+name: Content Factory Orchestrator (Duplicate-Proof)
 
 on:
-  workflow_dispatch: # Allows manual trigger
+  workflow_dispatch:         # Allows manual trigger
 
 jobs:
-  run-pipeline:
+  process-queue:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Crucial: Allows the runner to commit changes back to your repository
-      actions: write
+      contents: write        # Allows the bot to push files back to repo
+      actions: write         # Required to read/write rolling artifact tracking pools
 
     steps:
-      # 1. Pull down your repository code structure
-      - name: Checkout Codebase
+      # 1. Checkout your repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. Spin up Python Engine environment
-      - name: Set up Python Environment
+      # 2. Set up Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # 3. Spin up Node.js Engine environment (Required for Playwright)
-      - name: Set up Node.js Runtime
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-      # 4. Install all python modules, system packages, and web testing engines
-      - name: Global Dependency Installation
+      # 3. Install lightweight dependencies
+      - name: Install Dependencies
         run: |
-         sudo apt-get update
-         sudo apt-get install -y xvfb ffmpeg
+         pip install requests openai yt-dlp requests[socks]
          python -m pip install --upgrade pip
-         pip install requests opencv-python torch transformers pillow
          pip install playwright
-         npm install playwright
-         npx playwright install --with-deps chromium
+         playwright install chromium --with-deps
+         
 
-      # 5. Scan queue, find a new YouTube Shorts URL, write to pipeline_data.json, and track it
-      - name: Process Unique Queue Selection
+      # 4. Process queue → generate pipeline_data.json
+      - name: Process Queue & Generate Script
         run: |
           python3 << 'EOF'
           import os, json, re
           from datetime import datetime, timezone
           
-          if not os.path.exists('reel_queue.json'):
-              with open('reel_queue.json', 'w') as f:
-                  json.dump({"queue": [], "processed": []}, f)
-
           with open('reel_queue.json', 'r') as f:
               data = json.load(f)
           
           queue = data.get('queue', [])
-          processed_urls = {p['url'] for p in data.get('processed', [])}
+          processed = {p['url'] for p in data.get('processed', [])}
           
           pick = None
           for r in queue:
-              if ('youtube.com' in r['url'] or 'youtu.be' in r['url']) and r['url'] not in processed_urls:
+              if 'www.instagram.com' in r['url']:
                   pick = r
                   break
           
           if not pick:
-              print("✅ Queue Exhausted: No new YouTube shorts found.")
-              exit(1)
+              print("✅ No new reels. Exiting.")
+              exit(0)
           
-          video_id_match = re.search(r'(?:shorts/|v=|be/)([^/?&]+)', pick['url'])
-          video_id = video_id_match.group(1) if video_id_match else "unknown"
+          sc_match = re.search(r'/reel/([^/?]+)', pick['url'])
+          sc = sc_match.group(1) if sc_match else "unknown"
+          user = pick.get('username', 'unknown')
           
           with open('pipeline_data.json', 'w') as f:
             json.dump({
-                 "video_url": pick['url'], 
-                 "video_id": video_id,
-                 "instagram_caption": ""
+                 "reel_url": pick['url'], "shortcode": sc, "username": user,
+                 "script_text": " ",
+                  "youtube_title": f"AI Hack #shorts",
+                  "youtube_description": f"Tip from @{user}. #ai",
+                  "youtube_tags": ["AI","Shorts"]
               }, f, indent=2)
           
           data.setdefault('processed', []).append({
-              "url": pick['url'],
-              "status": "in_progress", 
-              "started_at": datetime.now(timezone.utc).isoformat()
+              "url": pick['url'], "username": user,
+              "status": "in_progress", "started_at": datetime.now(timezone.utc).isoformat()
           })
           with open('reel_queue.json', 'w') as f:
               json.dump(data, f, indent=2)
-          print(f"🎯 Locked Target Link: {pick['url']}")
+          print(f"✅ Queued: {pick['url']}")
           EOF
 
-      # 6. Initialize Virtual Screen Buffer (Xvfb) so Chromium can download files headfully
-      - name: Launch Virtual Screen Buffer
+      # ====================================================================
+      # ROBUST ROUTINE: HEADED PLAYWRIGHT VIRTUAL SCREEN BYPASS (NO COOKIES)
+      # ====================================================================
+
+      # 4a. Initialize a Virtual Screen Buffer (Xvfb) so Chromium can run with headless=false in the cloud
+      - name: Initialize Virtual Display Framebuffer
         run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb
+          # Start Xvfb background display port 99
           Xvfb :99 -screen 0 1280x720x24 &
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
-
-      # # 7. Prepare local scratch folders for downloads
-      # - name: Create Workspace Folder Matrix
-      #   run: |
-      #     mkdir -p ./youtubedownloads
-      #     mkdir -p ./downloads
 
             # 4b. Use genuine browser simulation to process y2mate completely safely
       - name: Cloud Download Video Asset via Playwright Simulation
@@ -116,10 +107,10 @@ jobs:
               with open('pipeline_data.json', 'r') as f:
                   pipeline = json.load(f)
               
-              # SWAPPED: Pull the YouTube video url variable key
-              video_url = pipeline.get('video_url')
+              reel_url = pipeline.get('reel_url')
+              shortcode = pipeline.get('shortcode', 'downloaded_reel')
               
-              if not video_url or "unknown" in video_url:
+              if not reel_url or "unknown" in reel_url:
                   print("❌ Missing video URL target path inside JSON queue.")
                   return
               
@@ -131,8 +122,9 @@ jobs:
               os.makedirs('downloads', exist_ok=True)
               output_path = f"downloads/reelforyoutube.mp4"
               
-              print(f"🚀 Launching real browser instance to download from ://www-y2mate.com: {video_url}")
+              print(f"🚀 Launching real browser instance to download from v22.www-y2mate.com: {reel_url}")
               
+              video_stream_url = None
               download_success = False
               
               async with async_playwright() as p:
@@ -142,50 +134,49 @@ jobs:
                   )
                   
                   context = await browser.new_context(
-                      viewport={'width': 1280, 'height': 720},
+                      viewport={'width': 1280, 'height': 800},
                       user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
                       accept_downloads=True
                   )
                   
-                  # Handle context setup and popups
+                  # Handle array element conversion for page selection
                   pages = context.pages
                   page = pages[0] if len(pages) > 0 else await context.new_page()
                   
+                  # Suppress ad network popup windows natively
                   context.on('page', lambda popup: asyncio.create_task(popup.close()) if print("🛡️ Suppressed ad network popup window.") or True else None)
                   await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads"]) else route.abort())
                   
                   print("🌐 Loading downloader frontend...")
-                  await page.goto("https://://www-y2mate.com/", wait_until="domcontentloaded", timeout=60000)
+                  await page.goto('https://v22.www-y2mate.com/', wait_until='domcontentloaded', timeout=60000)
                   await page.wait_for_timeout(2000)
                   
-                  # Target the Y2Mate input interface field
-                  input_locator = page.get_by_role('textbox', name='Search or paste link here...')
-                  await input_locator.wait_for(state='visible', timeout=15000)
-                  await input_locator.click()
-                  await input_locator.fill(video_url)
-                  await page.wait_for_timeout(1000)
-                  await input_locator.press('Enter')
-                  
-                  print("⚡ Dispatching submission elements on target layout interface...")
+                  # Paste link matching target layout textbox structures
+                  textbox = page.get_by_role('textbox', name='Search or paste link here...')
+                  await textbox.wait_for(state='visible', timeout=30000)
+                  await textbox.dblclick()
+                  await textbox.fill(reel_url)
+                  await textbox.press('Enter')
+                  print("✏️ Link entered and search submitted.")
                   
                   try:
-                      # Lock the api rendering frame module
-                      widget_iframe = page.frame_locator('#widgetv2Api')
+                      # Target widget API framing window
+                      widgetIframe = page.frame_locator('#widgetv2Api')
                       
-                      print("🗂️ Switching to Video tab panel inside framework structure...")
-                      await widget_iframe.get_by_role('link', name='Video').click()
+                      print("🗂️ Switching to Video tab...")
+                      await widgetIframe.get_by_role('link', name='Video').click()
                       await page.wait_for_timeout(1000)
                       
-                      print("👆 Clicking primary conversion row button...")
-                      await widget_iframe.get_by_role('row', name='1080p (.mp4) Auto Download').get_by_role('button').click()
+                      print("👆 Clicking initial conversion row button...")
+                      await widgetIframe.get_by_role('row', name='1080p (.mp4) Auto  Download').get_by_role('button').click()
                       
-                      print("⏳ Monitoring server-side conversion frames for final download triggers...")
-                      final_download_btn = widget_iframe.get_by_role('link', name='Download')
-                      await final_download_btn.wait_for(state='visible', timeout=45000)
+                      print("⏳ Waiting for backend to compile stream and clicking final Download link...")
+                      finalDownloadLink = widgetIframe.get_by_role('link', name='Download')
+                      await finalDownloadLink.waitFor(state='visible', timeout=45000)
                       
                       print("🎯 Native Playwright event listener active. Triggering physical browser stream click...")
                       async with context.expect_download(timeout=30000) as download_info:
-                          await final_download_btn.click()
+                          await finalDownloadLink.click()
                       
                       download = await download_info.value
                       await download.save_as(output_path)
@@ -193,7 +184,7 @@ jobs:
                       print("✅ Successfully captured file directly via native browser download event.")
                       
                   except Exception as event_error:
-                      print(f"❌ Automation engine encountered failure or rendering timeout: ({event_error})")
+                      print(f"⚠️ Playwright automation layout loop caught an exception: ({event_error})")
                               
                   await browser.close()
               
