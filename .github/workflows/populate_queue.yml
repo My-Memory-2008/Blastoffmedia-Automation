@@ -55,7 +55,7 @@ jobs:
           print(f"🎯 Selected: {next_link}")
 
           # Extract username from URL
-          user_match = re.search(r'instagram\.com/([^/?]+)', next_link)
+          user_match = re.search(r'youtube\.com/([^/?]+)', next_link)
           username = user_match.group(1) if user_match else "unknown"
 
           # Build queue entry in YOUR exact format
