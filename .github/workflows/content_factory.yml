@@ -91,11 +91,11 @@ jobs:
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
-      # 7. Prepare local scratch folders for downloads
-      - name: Create Workspace Folder Matrix
-        run: |
-          mkdir -p ./youtubedownloads
-          mkdir -p ./downloads
+      # # 7. Prepare local scratch folders for downloads
+      # - name: Create Workspace Folder Matrix
+      #   run: |
+      #     mkdir -p ./youtubedownloads
+      #     mkdir -p ./downloads
 
       # 8. Use your Playwright script to fetch the HD stream cleanly from Y2Mate
       - name: Download HD Source Stream via Playwright
@@ -120,7 +120,6 @@ jobs:
             });
 
             const pages = browserContext.pages();
-            // FIX APPLIED HERE: Added indices [0] to select the page element instead of the collection array
             const page = pages.length > 0 ? pages[0] : await browserContext.newPage();
 
             browserContext.on('page', async popup => {
@@ -158,22 +157,21 @@ jobs:
               await browserContext.close();
             }
 
-
-      # 9. Verify data integrity and translate file over to editing block
-      - name: Workspace File Alignment & Verification
+      # 9. Verify data integrity and move to the root-level visible downloads folder
+      - name: Verify and Move to Root Downloads Folder
         run: |
           python3 << 'EOF'
           import os, shutil
           src = "./youtubedownloads/downloaded_short.mp4"
-          dst = "downloads/reelforyoutube.mp4"
+          dst = "./downloads/reelforyoutube.mp4"
 
           if os.path.exists(src):
               f_size = os.path.getsize(src)
               if f_size > 50000:
-                  print(f"🎉 Asset Verified. Moving to production lane. Size: {f_size / (1024*1024):.2f} MB")
+                  print(f"🎉 Asset Verified. Size: {f_size / (1024*1024):.2f} MB")
                   shutil.move(src, dst)
               else:
-                  print("❌ Error: Extracted asset contains zero streaming metrics.")
+                  print("❌ Error: Downloaded file is corrupted or empty.")
                   exit(1)
           else:
               print("❌ Error: Download target path missing.")
