@@ -100,12 +100,16 @@ jobs:
           
           async def run_stealth_download():
               # 1. Extraction safety checks
-              if not os.path.exists('pipeline_data.json'):
-                  print("ℹ️ pipeline_data.json missing. Skipping download cycle.")
+              if not os.path.exists('pipeline_data.json') or os.path.getsize('pipeline_data.json') == 0:
+                  print("ℹ️ pipeline_data.json missing or empty. Skipping download cycle.")
                   return
-                  
-              with open('pipeline_data.json', 'r') as f:
-                  pipeline = json.load(f)
+              
+              try:    
+                  with open('pipeline_data.json', 'r') as f:
+                      pipeline = json.load(f)
+              except json.JSONDecodeError:
+                  print("❌ pipeline_data.json contains corrupt non-JSON data. Skipping download cycle.")
+                  return
               
               reel_url = pipeline.get('reel_url')
               shortcode = pipeline.get('shortcode', 'downloaded_reel')
@@ -114,13 +118,17 @@ jobs:
                   print("❌ Missing video URL target path inside JSON queue.")
                   return
               
+              # Use absolute paths to guarantee Github Actions workspace visibility
+              workspace_root = os.getcwd()
+              download_folder = os.path.join(workspace_root, 'downloads')
+              
               # CRITICAL AUTOMATED RESET: Wipes out previous video file frames completely
-              if os.path.exists('downloads'):
-                  shutil.rmtree('downloads')
+              if os.path.exists(download_folder):
+                  shutil.rmtree(download_folder)
                   print("🧹 Storage Reset: Prior video files completely purged from memory workspace.")
                   
-              os.makedirs('downloads', exist_ok=True)
-              output_path = f"downloads/reelforyoutube.mp4"
+              os.makedirs(download_folder, exist_ok=True)
+              output_path = os.path.join(download_folder, 'reelforyoutube.mp4')
               
               print(f"🚀 Launching real browser instance to download from y2mate.com: {reel_url}")
               
@@ -144,7 +152,7 @@ jobs:
                   )
                   
                   pages = browser_context.pages
-                  page = pages[0] if len(pages) > 0 else await browser_context.new_page()
+                  page = pages if len(pages) > 0 else await browser_context.new_page()
                   
                   # Anti-advertising network route bypass rule matching your pipeline filter
                   await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads", "://y2mate.com"]) else route.abort())
@@ -159,7 +167,7 @@ jobs:
                   browser_context.on("page", handle_popup)
                   
                   print("🌐 Loading downloader frontend...")
-                  await page.goto("https://www-y2mate.com", wait_until="domcontentloaded", timeout=60000)
+                  await page.goto("https://v22.www-y2mate.com/", wait_until="domcontentloaded", timeout=60000)
                   await page.wait_for_timeout(2000)
                   
                   input_locator = page.get_by_role('textbox', name='Search or paste link here...')
@@ -192,8 +200,8 @@ jobs:
                       
                       print("🎯 Native Playwright event listener active. Triggering physical browser stream click...")
                       
-                      # Intercept browser context level file downloads to handle multiple opened tabs
-                      async with browser_context.expect_download(timeout=45000) as download_info:
+                      # FIX: expect_download belongs to the page instance object in Python Playwright
+                      async with page.expect_download(timeout=45000) as download_info:
                           await final_download_link.click()
                       
                       download = await download_info.value
@@ -230,7 +238,7 @@ jobs:
                   
                   if isinstance(video_stream_url, str) and video_stream_url.startswith("/"):
                       print("🔧 Relative link path configuration identified. Applying absolute root repairs...")
-                      video_stream_url = f"https://www-y2mate.com{video_stream_url}"
+                      video_stream_url = f"https://v22.www-y2mate.com{video_stream_url}"
                       
                   if isinstance(video_stream_url, str):
                       video_stream_url = video_stream_url.replace('&amp;', '&')
@@ -252,6 +260,7 @@ jobs:
           
           asyncio.run(run_stealth_download())
           EOF
+
 
 
       # 10. Run FFmpeg adjustments to clear watermarks and force exact 1080x1920 layout structures
