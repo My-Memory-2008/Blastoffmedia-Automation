@@ -20,7 +20,7 @@ async def run():
         # Launching headless browser on desktop resolution
         browser = await p.chromium.launch(headless=True, args=["--window-size=1920,1080"])
         
-        notebook_url = "https://kaggle.com/code/muhammadasjad2008/content-factory-engine/edit"
+        notebook_url = "https://kaggle.com/code/muhammadasjad2008/blastoffmedia-automation/edit"
         login_successful = False
         active_context = None
         active_page = None
