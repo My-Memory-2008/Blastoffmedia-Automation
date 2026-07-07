@@ -37,103 +37,43 @@ jobs:
           import os, json, re
           from datetime import datetime, timezone
           
-          if not os.path.exists('reel_queue.json'):
-              print("❌ Critical Error: reel_queue.json does not exist in the root directory!")
-              exit(1)
-              
           with open('reel_queue.json', 'r') as f:
               data = json.load(f)
           
           queue = data.get('queue', [])
-          processed_list = data.get('processed', [])
-          processed_urls = {p['url'].strip().lower() for p in processed_list if 'url' in p}
-          
-          print(f"📊 Debug Info: Found {len(queue)} items in queue. Found {len(processed_urls)} items already processed.")
+          processed = {p['url'] for p in data.get('processed', [])}
           
           pick = None
-          for index, r in enumerate(queue):
-              url = r.get('url', '')
-              url_lower = url.strip().lower()
-              print(f"  🔍 Checking item [{index}]: {url}")
-              
-              # Loose check for ANY youtube identifier string
-              if any(x in url_lower for x in ['youtube', 'youtu.be', 'shorts']):
-                  if url_lower not in processed_urls:
-                      pick = r
-                      print(f"  🎯 Found a match! Picking: {url}")
-                      break
-                  else:
-                      print(f"  ⚠️ Skipped: URL is already marked as processed.")
+          for r in queue:
+              if 'youtube.com' or 'youtu.be' in r['url']:
+                  pick = r
+                  break
           
           if not pick:
-              print("✅ No new eligible YouTube videos found in the queue. Exiting early.")
+              print("✅ No new reels. Exiting.")
               exit(0)
           
-          # Extract shortcode from either YouTube Shorts paths or standard YouTube shares
-          sc_match = re.search(r'(?:shorts/|v=|be/)([^/?&]+)', pick['url'])
+          sc_match = re.search(r'/reel/([^/?]+)', pick['url'])
           sc = sc_match.group(1) if sc_match else "unknown"
           user = pick.get('username', 'unknown')
           
-          # Prepare the clean data dictionary
-          pipeline_payload = {
-              "reel_url": pick['url'], 
-              "shortcode": sc, 
-              "username": user,
-              "script_text": " ",
-              "youtube_title": "AI Hack #shorts",
-              "youtube_description": f"Tip from @{user}. #ai",
-              "youtube_tags": ["AI", "Shorts"]
-          }
-          
-          # Write out the pipeline data and immediately flush it to disk
-          print(f"📝 Writing payload details to pipeline_data.json...")
           with open('pipeline_data.json', 'w') as f:
-              json.dump(pipeline_payload, f, indent=2)
-              f.flush()
-              os.fsync(f.fileno()) # Force system buffer to physically write file
+            json.dump({
+                 "reel_url": pick['url'], "shortcode": sc, "username": user,
+                 "script_text": " ",
+                  "youtube_title": f"AI Hack #shorts",
+                  "youtube_description": f"Tip from @{user}. #ai",
+                  "youtube_tags": ["AI","Shorts"]
+              }, f, indent=2)
           
-          # Double check file generation state right now
-          if os.path.exists('pipeline_data.json') and os.path.getsize('pipeline_data.json') > 0:
-              print(f"💾 File successfully created! Size: {os.path.getsize('pipeline_data.json')} bytes.")
-          else:
-              print("❌ System Error: pipeline_data.json is still missing or 0 bytes after write operation!")
-          
-          # Append to processed tracking list and save back to original file
           data.setdefault('processed', []).append({
-              "url": pick['url'], 
-              "username": user,
-              "status": "in_progress", 
-              "started_at": datetime.now(timezone.utc).isoformat()
+              "url": pick['url'], "username": user,
+              "status": "in_progress", "started_at": datetime.now(timezone.utc).isoformat()
           })
-          
           with open('reel_queue.json', 'w') as f:
               json.dump(data, f, indent=2)
-              
-          print(f"🚀 Successfully processed and logged data for: {pick['url']}")
+          print(f"✅ Queued: {pick['url']}")
           EOF
-
-      # 4c. Commit and Push JSON updates back to the GitHub Repository Root
-      - name: Commit and Push Workspace File Updates
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@://"github.com"
-          
-          # Add only the specific tracking files modified or created by the script
-          git add reel_queue.json
-          
-          # Check if pipeline_data.json exists before attempting to track it
-          if [ -f "pipeline_data.json" ]; then
-            git add pipeline_data.json
-          fi
-          
-          # Only run commit if there are actual structural file changes to save
-          if ! git diff-index --quiet HEAD; then
-            git commit -m "chore: update processing queue and pipeline payload [skip ci]"
-            git push origin HEAD:${{ github.ref }}
-            echo "🚀 Workspace modifications successfully committed and pushed to GitHub root!"
-          else
-            echo "ℹ️ No file delta detected. Repository commit stage bypassed."
-          fi
       # ====================================================================
       # ROBUST ROUTINE: HEADED PLAYWRIGHT VIRTUAL SCREEN BYPASS (NO COOKIES)
       # ====================================================================
