@@ -30,13 +30,19 @@ jobs:
          playwright install chromium --with-deps
          
 
-      # 4. Process queue → generate pipeline_data.json
-      - name: Process Queue & Generate Script
+      # 4. Process queue → generate pipeline_data.json & push updates back to repo
+      - name: Process Queue, Generate Pipeline & Push Changes
+        permissions:
+          contents: write
         run: |
           python3 << 'EOF'
           import os, json, re
           from datetime import datetime, timezone
           
+          if not os.path.exists('reel_queue.json'):
+              print("❌ Critical Error: reel_queue.json does not exist in the root directory!")
+              exit(1)
+              
           with open('reel_queue.json', 'r') as f:
               data = json.load(f)
           
@@ -46,7 +52,6 @@ jobs:
           pick = None
           for r in queue:
               url_lower = r['url'].strip().lower()
-              # FIX: Accept YouTube links (standard, shared links, and shorts formats)
               if any(x in url_lower for x in ['youtube.com', 'youtu.be', 'shorts']):
                   if url_lower not in processed:
                       pick = r
@@ -56,13 +61,14 @@ jobs:
               print("✅ No new YouTube videos or shorts found. Exiting.")
               exit(0)
           
-          # FIX: Extract the core YouTube video/short ID string
+          # Extract the core YouTube video/short ID string
           sc_match = re.search(r'(?:shorts/|v=|be/)([^/?&]+)', pick['url'])
           sc = sc_match.group(1) if sc_match else "unknown"
           user = pick.get('username', 'unknown')
           
+          # Force create and save the pipeline_data.json payload file
           with open('pipeline_data.json', 'w') as f:
-            json.dump({
+              json.dump({
                  "reel_url": pick['url'], 
                  "shortcode": sc, 
                  "username": user,
@@ -71,15 +77,40 @@ jobs:
                  "youtube_description": f"Tip from @{user}. #ai",
                  "youtube_tags": ["AI","Shorts"]
               }, f, indent=2)
+              f.flush()
+              os.fsync(f.fileno())
           
+          # Append to processed and update reel_queue.json file variables
           data.setdefault('processed', []).append({
               "url": pick['url'], "username": user,
               "status": "in_progress", "started_at": datetime.now(timezone.utc).isoformat()
           })
           with open('reel_queue.json', 'w') as f:
               json.dump(data, f, indent=2)
-          print(f"✅ Queued: {pick['url']}")
+              f.flush()
+              os.fsync(f.fileno())
+              
+          print(f"✅ Data processing complete inside runner storage for: {pick['url']}")
           EOF
+
+          # --- GIT COMMIT AND PUSH ENGINE BLOCK ---
+          echo "🔄 Setting up local git environment configurations..."
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@://github.com"
+          
+          # Track the target payload configurations explicitly
+          git add reel_queue.json pipeline_data.json
+          
+          # Verify modifications and push out to repository workspace root
+          if ! git diff-index --quiet HEAD; then
+            echo "📝 Committing file adjustments to branch history..."
+            git commit -m "chore: cycle queue allocations and update processing profiles [skip ci]"
+            git push origin HEAD:${{ github.ref }}
+            echo "🚀 File updates successfully synchronized back into Github repository workspace root!"
+          else
+            echo "ℹ️ Workspace files are identical to repository tracking. Push sequence bypassed."
+          fi
+
 
       # ====================================================================
       # ROBUST ROUTINE: HEADED PLAYWRIGHT VIRTUAL SCREEN BYPASS (NO COOKIES)
