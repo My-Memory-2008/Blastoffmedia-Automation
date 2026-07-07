@@ -37,44 +37,68 @@ jobs:
           import os, json, re
           from datetime import datetime, timezone
           
+          if not os.path.exists('reel_queue.json'):
+              print("❌ Critical Error: reel_queue.json does not exist in the root directory!")
+              exit(1)
+              
           with open('reel_queue.json', 'r') as f:
               data = json.load(f)
           
           queue = data.get('queue', [])
-          processed = {p['url'] for p in data.get('processed', [])}
+          processed_list = data.get('processed', [])
+          processed_urls = {p['url'].strip().lower() for p in processed_list if 'url' in p}
+          
+          print(f"📊 Debug Info: Found {len(queue)} items in queue. Found {len(processed_urls)} items already processed.")
           
           pick = None
-          for r in queue:
-              url_lower = r['url'].lower()
-              # FIX: Catch all standard variations of YouTube links
-              if 'youtube.com' in url_lower or 'youtu.be' in url_lower or 'shorts' in url_lower:
-                  # Ensure we haven't already processed it
-                  if r['url'] not in processed:
+          for index, r in enumerate(queue):
+              url = r.get('url', '')
+              url_lower = url.strip().lower()
+              print(f"  🔍 Checking item [{index}]: {url}")
+              
+              # Loose check for ANY youtube identifier string
+              if any(x in url_lower for x in ['youtube', 'youtu.be', 'shorts']):
+                  if url_lower not in processed_urls:
                       pick = r
+                      print(f"  🎯 Found a match! Picking: {url}")
                       break
+                  else:
+                      print(f"  ⚠️ Skipped: URL is already marked as processed.")
           
           if not pick:
-              print("✅ No new reels found in queue. Exiting.")
+              print("✅ No new eligible YouTube videos found in the queue. Exiting early.")
               exit(0)
           
-          # FIX: Extract shortcode from either YouTube Shorts paths or standard YouTube shares
+          # Extract shortcode from either YouTube Shorts paths or standard YouTube shares
           sc_match = re.search(r'(?:shorts/|v=|be/)([^/?&]+)', pick['url'])
           sc = sc_match.group(1) if sc_match else "unknown"
           user = pick.get('username', 'unknown')
           
-          # Write out the pipeline data
-          with open('pipeline_data.json', 'w') as f:
-              json.dump({
-                 "reel_url": pick['url'], 
-                 "shortcode": sc, 
-                 "username": user,
-                 "script_text": " ",
-                 "youtube_title": f"AI Hack #shorts",
-                 "youtube_description": f"Tip from @{user}. #ai",
-                 "youtube_tags": ["AI","Shorts"]
-              }, f, indent=2)
+          # Prepare the clean data dictionary
+          pipeline_payload = {
+              "reel_url": pick['url'], 
+              "shortcode": sc, 
+              "username": user,
+              "script_text": " ",
+              "youtube_title": "AI Hack #shorts",
+              "youtube_description": f"Tip from @{user}. #ai",
+              "youtube_tags": ["AI", "Shorts"]
+          }
           
-          # Append to processed and save changes back to reel_queue.json
+          # Write out the pipeline data and immediately flush it to disk
+          print(f"📝 Writing payload details to pipeline_data.json...")
+          with open('pipeline_data.json', 'w') as f:
+              json.dump(pipeline_payload, f, indent=2)
+              f.flush()
+              os.fsync(f.fileno()) # Force system buffer to physically write file
+          
+          # Double check file generation state right now
+          if os.path.exists('pipeline_data.json') and os.path.getsize('pipeline_data.json') > 0:
+              print(f"💾 File successfully created! Size: {os.path.getsize('pipeline_data.json')} bytes.")
+          else:
+              print("❌ System Error: pipeline_data.json is still missing or 0 bytes after write operation!")
+          
+          # Append to processed tracking list and save back to original file
           data.setdefault('processed', []).append({
               "url": pick['url'], 
               "username": user,
@@ -85,8 +109,9 @@ jobs:
           with open('reel_queue.json', 'w') as f:
               json.dump(data, f, indent=2)
               
-          print(f"✅ Queued and saved changes for: {pick['url']} (ID: {sc})")
+          print(f"🚀 Successfully processed and logged data for: {pick['url']}")
           EOF
+
 
       # ====================================================================
       # ROBUST ROUTINE: HEADED PLAYWRIGHT VIRTUAL SCREEN BYPASS (NO COOKIES)
