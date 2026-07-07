@@ -45,34 +45,47 @@ jobs:
           
           pick = None
           for r in queue:
-              if '://youtube.com' in r['url']:
-                  pick = r
-                  break
+              url_lower = r['url'].lower()
+              # FIX: Catch all standard variations of YouTube links
+              if 'youtube.com' in url_lower or 'youtu.be' in url_lower or 'shorts' in url_lower:
+                  # Ensure we haven't already processed it
+                  if r['url'] not in processed:
+                      pick = r
+                      break
           
           if not pick:
-              print("✅ No new reels. Exiting.")
+              print("✅ No new reels found in queue. Exiting.")
               exit(0)
           
-          sc_match = re.search(r'/reel/([^/?]+)', pick['url'])
+          # FIX: Extract shortcode from either YouTube Shorts paths or standard YouTube shares
+          sc_match = re.search(r'(?:shorts/|v=|be/)([^/?&]+)', pick['url'])
           sc = sc_match.group(1) if sc_match else "unknown"
           user = pick.get('username', 'unknown')
           
+          # Write out the pipeline data
           with open('pipeline_data.json', 'w') as f:
-            json.dump({
-                 "reel_url": pick['url'], "shortcode": sc, "username": user,
+              json.dump({
+                 "reel_url": pick['url'], 
+                 "shortcode": sc, 
+                 "username": user,
                  "script_text": " ",
-                  "youtube_title": f"AI Hack #shorts",
-                  "youtube_description": f"Tip from @{user}. #ai",
-                  "youtube_tags": ["AI","Shorts"]
+                 "youtube_title": f"AI Hack #shorts",
+                 "youtube_description": f"Tip from @{user}. #ai",
+                 "youtube_tags": ["AI","Shorts"]
               }, f, indent=2)
           
+          # Append to processed and save changes back to reel_queue.json
           data.setdefault('processed', []).append({
-              "url": pick['url'], "username": user,
-              "status": "in_progress", "started_at": datetime.now(timezone.utc).isoformat()
+              "url": pick['url'], 
+              "username": user,
+              "status": "in_progress", 
+              "started_at": datetime.now(timezone.utc).isoformat()
           })
+          
           with open('reel_queue.json', 'w') as f:
               json.dump(data, f, indent=2)
-          print(f"✅ Queued: {pick['url']}")
+              
+          print(f"✅ Queued and saved changes for: {pick['url']} (ID: {sc})")
           EOF
 
       # ====================================================================
