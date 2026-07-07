@@ -243,7 +243,20 @@ jobs:
           EOF
 
 
-      
+      # 4c. Push the video file back to the repository root so it becomes visible on github
+      - name: Commit and Push Downloaded Video to Repository Root
+        run: |
+          git config --global user.name "Automated Curation Bot"
+          git config --global user.email "bot@contentfactory.internal"
+          
+          # Force add the downloads folder and the mp4 file
+          git add downloads/reelforyoutube.mp4
+          
+          # Commit the changes. The "|| echo" prevents the workflow from breaking if nothing changed.
+          git commit -m "Saved raw video stream to workspace root [skip ci]" || echo "No new changes to commit"
+          
+          # Push the changes live to your main branch
+          git push
 
       # 10. Run FFmpeg adjustments to clear watermarks and force exact 1080x1920 layout structures
       - name: FFmpeg Layout Conforming & Logo Correction
