@@ -116,7 +116,8 @@ jobs:
       - name: Commit and Push Workspace File Updates
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@://github.com"
+          git config --global user.email "41898282+github-actions[bot]@://"github.com"
+          
           # Add only the specific tracking files modified or created by the script
           git add reel_queue.json
           
@@ -129,9 +130,9 @@ jobs:
           if ! git diff-index --quiet HEAD; then
             git commit -m "chore: update processing queue and pipeline payload [skip ci]"
             git push origin HEAD:${{ github.ref }}
-            print("🚀 Workspace modifications successfully committed and pushed to GitHub root!")
+            echo "🚀 Workspace modifications successfully committed and pushed to GitHub root!"
           else
-            print("ℹ️ No file delta detected. Repository commit stage bypassed.")
+            echo "ℹ️ No file delta detected. Repository commit stage bypassed."
           fi
       # ====================================================================
       # ROBUST ROUTINE: HEADED PLAYWRIGHT VIRTUAL SCREEN BYPASS (NO COOKIES)
