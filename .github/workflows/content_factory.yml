@@ -124,7 +124,7 @@ jobs:
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
-              # 4b. Use genuine browser simulation to process y2mate completely safely
+       # 4b. Use genuine browser simulation to process y2mate completely safely
       - name: Cloud Download Video Asset via Playwright Simulation
         env:
           DISPLAY: :99
@@ -174,11 +174,11 @@ jobs:
                       accept_downloads=True
                   )
                   
-                  # Handle array element conversion for page selection
+                  # Array handling fix matching context layout structure
                   pages = context.pages
                   page = pages[0] if len(pages) > 0 else await context.new_page()
                   
-                  # Suppress ad network popup windows natively
+                  # Automatically handle and close any advertising popups thrown during clicks
                   context.on('page', lambda popup: asyncio.create_task(popup.close()) if print("🛡️ Suppressed ad network popup window.") or True else None)
                   await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads"]) else route.abort())
                   
@@ -186,7 +186,7 @@ jobs:
                   await page.goto('https://v22.www-y2mate.com/', wait_until='domcontentloaded', timeout=60000)
                   await page.wait_for_timeout(2000)
                   
-                  # Paste link matching target layout textbox structures
+                  # Locate textbox, double-click, and fill with the dynamic video URL (reel_url variable)
                   textbox = page.get_by_role('textbox', name='Search or paste link here...')
                   await textbox.wait_for(state='visible', timeout=30000)
                   await textbox.dblclick()
@@ -195,20 +195,24 @@ jobs:
                   print("✏️ Link entered and search submitted.")
                   
                   try:
-                      # Target widget API framing window
+                      # Isolate the dynamic widget iframe frame matching your codegen script
                       widgetIframe = page.frame_locator('#widgetv2Api')
-                      
+
+                      # Switch to the Video tab inside the iframe
                       print("🗂️ Switching to Video tab...")
                       await widgetIframe.get_by_role('link', name='Video').click()
                       await page.wait_for_timeout(1000)
-                      
+
+                      # Click the primary resolution download button inside the iframe
                       print("👆 Clicking initial conversion row button...")
                       await widgetIframe.get_by_role('row', name='1080p (.mp4) Auto  Download').get_by_role('button').click()
-                      
+
+                      # Wait for the server-side conversion and target the final Download button inside the iframe
                       print("⏳ Waiting for backend to compile stream and clicking final Download link...")
                       finalDownloadLink = widgetIframe.get_by_role('link', name='Download')
                       await finalDownloadLink.waitFor(state='visible', timeout=45000)
-                      
+
+                      # Trigger physical browser stream click and expect file download info
                       print("🎯 Native Playwright event listener active. Triggering physical browser stream click...")
                       async with context.expect_download(timeout=30000) as download_info:
                           await finalDownloadLink.click()
@@ -219,7 +223,7 @@ jobs:
                       print("✅ Successfully captured file directly via native browser download event.")
                       
                   except Exception as event_error:
-                      print(f"⚠️ Playwright automation layout loop caught an exception: ({event_error})")
+                      print(f"⚠️ Native browser download event failed or timed out: ({event_error})")
                               
                   await browser.close()
               
@@ -235,6 +239,7 @@ jobs:
           
           asyncio.run(run_stealth_download())
           EOF
+
 
       
 
