@@ -61,7 +61,7 @@ jobs:
                  "reel_url": pick['url'], "shortcode": "op", "username": "kl",
                  "script_text": " ",
                   "youtube_title": f"AI Hack #shorts",
-                  "youtube_description": f"Tip from @{"asd"}. #ai",
+                  "youtube_description": f"Tip from @{'asd'}. #ai",
                   "youtube_tags": ["AI","Shorts"]
               }, f, indent=2)
           print("✅ wrote to pipeline_data.json")
