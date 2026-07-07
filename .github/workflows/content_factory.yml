@@ -124,7 +124,7 @@ jobs:
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
-       # 4b. Use genuine browser simulation to process y2mate completely safely
+      # 4b. Use genuine browser simulation to process y2mate completely safely
       - name: Cloud Download Video Asset via Playwright Simulation
         env:
           DISPLAY: :99
@@ -183,7 +183,7 @@ jobs:
                   await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads"]) else route.abort())
                   
                   print("🌐 Loading downloader frontend...")
-                  await page.goto('https://v22.www-y2mate.com/', wait_until='domcontentloaded', timeout=60000)
+                  await page.goto('https://www-y2mate.com', wait_until='domcontentloaded', timeout=60000)
                   await page.wait_for_timeout(2000)
                   
                   # Locate textbox, double-click, and fill with the dynamic video URL (reel_url variable)
@@ -210,11 +210,13 @@ jobs:
                       # Wait for the server-side conversion and target the final Download button inside the iframe
                       print("⏳ Waiting for backend to compile stream and clicking final Download link...")
                       finalDownloadLink = widgetIframe.get_by_role('link', name='Download')
-                      await finalDownloadLink.waitFor(state='visible', timeout=45000)
+                      
+                      # FIX APPLIED HERE: Changed from camelCase waitFor to Python style wait_for
+                      await finalDownloadLink.wait_for(state='visible', timeout=45000)
 
                       # Trigger physical browser stream click and expect file download info
                       print("🎯 Native Playwright event listener active. Triggering physical browser stream click...")
-                      async with context.expect_download(timeout=30000) as download_info:
+                      async with page.expect_download(timeout=30000) as download_info:
                           await finalDownloadLink.click()
                       
                       download = await download_info.value
