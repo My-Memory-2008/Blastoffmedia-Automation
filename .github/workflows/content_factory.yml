@@ -54,13 +54,11 @@ jobs:
               print("✅ No new reels. Exiting.")
               exit(0)
           
-          sc_match = re.search(r'/shorts/([^/?]+)', pick['url'])
-          sc = sc_match.group(1) if sc_match else "unknown"
-          user = pick.get('username', 'unknown')
+          
           
           with open('pipeline_data.json', 'w') as f:
             json.dump({
-                 "reel_url": pick['url'], "shortcode": sc, "username": user,
+                 "reel_url": pick['url'], "shortcode": "op", "username": "kl",
                  "script_text": " ",
                   "youtube_title": f"AI Hack #shorts",
                   "youtube_description": f"Tip from @{user}. #ai",
@@ -68,7 +66,7 @@ jobs:
               }, f, indent=2)
           
           data.setdefault('processed', []).append({
-              "url": pick['url'], "username": user,
+              "url": pick['url'], "username": "kl",
               "status": "in_progress", "started_at": datetime.now(timezone.utc).isoformat()
           })
           with open('reel_queue.json', 'w') as f:
