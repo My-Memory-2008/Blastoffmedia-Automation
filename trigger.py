@@ -61,7 +61,7 @@ async def run():
                 original_page = await original_context.new_page()
                 
                 # Navigate straight to Kaggle's clean login gateway
-                await original_page.goto("Use code with caution.pythonhttps://kaggle.comUse code with caution.python", wait_until="domcontentloaded")
+                await original_page.goto("https://kaggle.com", wait_until="domcontentloaded")
                 
                 # Click 'Sign in with Kaggle' to reveal standard user/pass/key fields
                 await original_page.click("button:has-text('Sign in with Kaggle'), button:has-text('Email')")
