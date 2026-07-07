@@ -41,38 +41,46 @@ jobs:
               data = json.load(f)
           
           queue = data.get('queue', [])
-          processed = {p['url'] for p in data.get('processed', [])}
+          processed = {p['url'].strip().lower() for p in data.get('processed', []) if 'url' in p}
           
           pick = None
           for r in queue:
-              if 'youtube.com' or 'youtu.be' in r['url']:
-                  print("✅ found the reel")
-                  pick = r
-                  break
+              url_lower = r['url'].strip().lower()
+              # FIX: Accept YouTube links (standard, shared links, and shorts formats)
+              if any(x in url_lower for x in ['youtube.com', 'youtu.be', 'shorts']):
+                  if url_lower not in processed:
+                      pick = r
+                      break
           
           if not pick:
-              print("✅ No new reels. Exiting.")
+              print("✅ No new YouTube videos or shorts found. Exiting.")
               exit(0)
           
-          
+          # FIX: Extract the core YouTube video/short ID string
+          sc_match = re.search(r'(?:shorts/|v=|be/)([^/?&]+)', pick['url'])
+          sc = sc_match.group(1) if sc_match else "unknown"
+          user = pick.get('username', 'unknown')
           
           with open('pipeline_data.json', 'w') as f:
             json.dump({
-                 "reel_url": pick['url'], "shortcode": "op", "username": "kl",
+                 "reel_url": pick['url'], 
+                 "shortcode": sc, 
+                 "username": user,
                  "script_text": " ",
-                  "youtube_title": f"AI Hack #shorts",
-                  "youtube_description": f"Tip from @{'asd'}. #ai",
-                  "youtube_tags": ["AI","Shorts"]
+                 "youtube_title": "AI Hack #shorts",
+                 "youtube_description": f"Tip from @{user}. #ai",
+                 "youtube_tags": ["AI","Shorts"]
               }, f, indent=2)
-          print("✅ wrote to pipeline_data.json")
+          
           data.setdefault('processed', []).append({
-              "url": pick['url'], "username": "kl",
+              "url": pick['url'], "username": user,
               "status": "in_progress", "started_at": datetime.now(timezone.utc).isoformat()
           })
           with open('reel_queue.json', 'w') as f:
               json.dump(data, f, indent=2)
           print(f"✅ Queued: {pick['url']}")
           EOF
+
       # ====================================================================
       # ROBUST ROUTINE: HEADED PLAYWRIGHT VIRTUAL SCREEN BYPASS (NO COOKIES)
       # ====================================================================
