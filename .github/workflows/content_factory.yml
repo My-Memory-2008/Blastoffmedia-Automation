@@ -258,124 +258,57 @@ jobs:
           # Push the changes live to your main branch
           git push
 
-      # 10. Run FFmpeg adjustments to clear watermarks and force exact 1080x1920 layout structures
-      - name: FFmpeg Layout Conforming & Logo Correction
+
+
+      # 6. Search across ALL historical runs to find and download yesterday's active token state
+      - name: Download Latest Historical Kaggle Session State
+        uses: dawidd6/action-download-artifact@v9
+        continue-on-error: true # Safe fallback if the entire history is clear
+        with:
+          name: kaggle-rolling-state
+          search_artifacts: true  # CRITICAL: Forces GitHub to look outside the current run thread
+          path: .                 # Base path execution root
+
+      # 6a. FIX STEP: Flatten directory structures & verify valid cookie structures
+      - name: Align and Validate Cookie State Pathing
         run: |
-          # Applies an overlay delogo filter box at x=40, y=40 to mask out core watermarks
-          # Then converts layout specs to H.264 video encoding at 30 fps max for Instagram Reels
-          ffmpeg -y -i downloads/reelforyoutube.mp4 -vf "delogo=x=40:y=40:w=170:h=70,scale=1080:1920,fps=30" \
-          -c:v libx264 -profile:v main -level 4.0 -pix_fmt yuv420p \
-          -c:a aac -b:a 128k downloads/final_instagram_ready.mp4
-          echo "✅ Processing engine finished layout conformation steps."
+          # If the plugin dropped the file inside a folder named after the artifact, move it to the root
+          if [ -f "./kaggle-rolling-state/state.json" ]; then
+            mv ./kaggle-rolling-state/state.json ./state.json
+            echo "🔄 Path Alignment: Moved state.json from nested artifact folder to root workspace."
+          fi
 
-      # 11. Run local open-source AI BLIP model to inspect frame contexts for SEO captions
-      - name: Local Open-Source AI SEO Caption Engine
-        run: |
-          python3 << 'EOF'
-          import cv2, json
-          from PIL import Image
-          from transformers import BlipProcessor, BlipForConditionalGeneration
+          # Safety Check: If state.json doesn't exist, create a clean, valid empty fallback JSON object
+          if [ ! -f "./state.json" ] || [ ! -s "./state.json" ]; then
+            echo "{}" > ./state.json
+            echo "⚠️ Warning: No valid historical state file found. Generated a clean fallback cookie template."
+          else
+            echo "✅ Valid rolling session cookie file detected in root workspace."
+          fi
 
-          # Slice a single mid-clip frame to let the AI process it
-          v_path = "downloads/final_instagram_ready.mp4"
-          cap = cv2.VideoCapture(v_path)
-          total_f = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-          cap.set(cv2.CAP_PROP_POS_FRAMES, total_f // 2)
-          ret, frame = cap.read()
-          cap.release()
-
-          if ret:
-              cv2.imwrite("frame_analysis.jpg", frame)
-              print("📸 Extracted mid-frame target checkpoint file.")
-              
-              # Pull the local BLIP vision-to-text models right onto the GitHub runner completely for free
-              processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
-              model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large")
-              
-              img = Image.open("frame_analysis.jpg").convert('RGB')
-              inputs = processor(img, return_tensors="pt")
-              output_tokens = model.generate(**inputs)
-              ai_insight = processor.decode(output_tokens, skip_special_tokens=True)
-          else:
-              ai_insight = "new curated content"
-
-          seo_caption = f"🔥 {ai_insight.capitalize()}! Check this out right now.\n\n#viral #trending #reels #fyp #shorts #ai"
-          
-          with open('pipeline_data.json', 'r') as f:
-              p_data = json.load(f)
-          p_data['instagram_caption'] = seo_caption
-          with open('pipeline_data.json', 'w') as f:
-              json.dump(p_data, f, indent=2)
-          print("✅ Custom localized AI caption appended successfully.")
-          EOF
-
-      # 12. Connect directly to Meta Content Publishing Graph API and bind the tracking Audio ID
-      - name: Meta Graph API Multi-Step Media Publishing
+      # 7. Trigger Kaggle (Using Kaggle CLI & Playwright)
+      - name: Trigger Kaggle Notebook
         env:
-          IG_ACCOUNT_ID: ${{ secrets.INSTAGRAM_BUSINESS_ACCOUNT_ID }}
-          FB_ACCESS_TOKEN: ${{ secrets.FACEBOOK_USER_ACCESS_TOKEN }}
-          BLASTOFF_AUDIO_ID: ${{ secrets.BLASTOFF_AUDIO_ID }}
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          KAGGLE_AUTH_JSON: ${{ secrets.KAGGLE_AUTH_JSON }}
+        run: python3 trigger.py
+
+      # 7a. FIX STEP: Guard against uploading empty or missing states if trigger.py errored out
+      - name: Verify Newly Extracted Session Tokens
+        if: always()
         run: |
-          python3 << 'EOF'
-          import os, json, time, requests
+          if [ ! -f "./state.json" ] || [ ! -s "./state.json" ]; then
+            echo "⚠️ Post-Run Warning: state.json is missing or empty. Populating safety fallback to prevent breaking tomorrow's action run loop."
+            echo "{}" > ./state.json
+          fi
 
-          IG_ACCOUNT_ID = os.getenv("IG_ACCOUNT_ID")
-          ACCESS_TOKEN = os.getenv("FB_ACCESS_TOKEN")
-          AUDIO_ID = os.getenv("BLASTOFF_AUDIO_ID")
-
-          with open('pipeline_data.json', 'r') as f:
-              pipeline = json.load(f)
-
-          # NOTE: Meta's media endpoint requires a public link to download the video into their network.
-          # Make sure your pipeline uploads the file 'downloads/final_instagram_ready.mp4' to a public storage folder 
-          # (like Cloudflare R2, Backblaze B2, an S3 bucket, or a live ngrok folder path) and insert that link here:
-          PUBLIC_URL = "https://your-publicly-hosted-bucket-storage.com"
-
-          endpoint_url = f"https://facebook.com{IG_ACCOUNT_ID}"
-          payload = {
-              "media_type": "REELS",
-              "video_url": PUBLIC_URL,
-              "caption": pipeline['instagram_caption'],
-              "audio_configuration": {
-                  "audio_id": AUDIO_ID,
-                  "audio_volume": 100,
-                  "video_volume": 20   # Automatically lowers background speech so Blastoff's audio tracks play clearly
-              },
-              "access_token": ACCESS_TOKEN
-          }
-
-          print("🔗 Building Meta Graph cloud container asset...")
-          res = requests.post(f"{endpoint_url}/media", json=payload).json()
-          if "id" not in res:
-              print(f"❌ Core API Upload Blocked: {res}")
-              exit(1)
-              
-          container_id = res["id"]
-          
-          # Status evaluation polling loop
-          check_url = f"https://facebook.com{container_id}"
-          while True:
-              status_report = requests.get(check_url, params={"fields": "status_code", "access_token": ACCESS_TOKEN}).json()
-              current_status = status_report.get("status_code", "IN_PROGRESS")
-              print(f"⏳ Meta transcode worker profile status: {current_status}")
-              if current_status == "FINISHED":
-                  break
-              elif current_status == "ERROR":
-                  print(f"❌ Meta Engine processing failure layout: {status_report}")
-                  exit(1)
-              time.sleep(15)
-
-          # Live Release Execution Hook
-          print("🚀 Transcode clear. Publishing Live to Instagram...")
-          final_res = requests.post(f"{endpoint_url}/media_publish", data={"creation_id": container_id, "access_token": ACCESS_TOKEN}).json()
-          print(f"🎉 Fully completed automated publish process. Tracking Reference ID: {final_res}")
-          EOF
-
-      # 13. Permanently write your changes to the queue to ensure duplicate links are omitted moving forward
-      - name: Save Queue Registry Progress Changes
-        run: |
-          git config --global user.name "Automated Curation Bot"
-          git config --global user.email "bot@contentfactory.internal"
-          git add reel_queue.json
-          git commit -m "Cleanup: Marked processed video link off active production queue [skip ci]" || echo "No changes to commit"
-          git push
+      # 8. Upload the freshly generated rolling session state so tomorrow's run can use it
+      - name: Save Refreshed Kaggle Session State
+        if: always() # Guarantees updated cookies register even if other pipeline steps fail
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaggle-rolling-state
+          path: state.json # Uploads the clean verified file from the root
+          retention-days: 7
+          overwrite: true  # CRITICAL: Forces GitHub actions to replace older historical blocks cleanly
