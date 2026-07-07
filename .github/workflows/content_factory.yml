@@ -112,7 +112,27 @@ jobs:
           print(f"🚀 Successfully processed and logged data for: {pick['url']}")
           EOF
 
-
+      # 4c. Commit and Push JSON updates back to the GitHub Repository Root
+      - name: Commit and Push Workspace File Updates
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@://github.com"
+          # Add only the specific tracking files modified or created by the script
+          git add reel_queue.json
+          
+          # Check if pipeline_data.json exists before attempting to track it
+          if [ -f "pipeline_data.json" ]; then
+            git add pipeline_data.json
+          fi
+          
+          # Only run commit if there are actual structural file changes to save
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "chore: update processing queue and pipeline payload [skip ci]"
+            git push origin HEAD:${{ github.ref }}
+            print("🚀 Workspace modifications successfully committed and pushed to GitHub root!")
+          else
+            print("ℹ️ No file delta detected. Repository commit stage bypassed.")
+          fi
       # ====================================================================
       # ROBUST ROUTINE: HEADED PLAYWRIGHT VIRTUAL SCREEN BYPASS (NO COOKIES)
       # ====================================================================
@@ -299,27 +319,7 @@ jobs:
           asyncio.run(run_stealth_download())
           EOF
 
-      # 4c. Commit and Push JSON updates back to the GitHub Repository Root
-      - name: Commit and Push Workspace File Updates
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@://github.com"
-          # Add only the specific tracking files modified or created by the script
-          git add reel_queue.json
-          
-          # Check if pipeline_data.json exists before attempting to track it
-          if [ -f "pipeline_data.json" ]; then
-            git add pipeline_data.json
-          fi
-          
-          # Only run commit if there are actual structural file changes to save
-          if ! git diff-index --quiet HEAD; then
-            git commit -m "chore: update processing queue and pipeline payload [skip ci]"
-            git push origin HEAD:${{ github.ref }}
-            print("🚀 Workspace modifications successfully committed and pushed to GitHub root!")
-          else
-            print("ℹ️ No file delta detected. Repository commit stage bypassed.")
-          fi
+      
 
       # 10. Run FFmpeg adjustments to clear watermarks and force exact 1080x1920 layout structures
       - name: FFmpeg Layout Conforming & Logo Correction
