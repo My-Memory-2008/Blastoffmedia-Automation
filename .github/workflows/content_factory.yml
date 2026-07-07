@@ -46,6 +46,7 @@ jobs:
           pick = None
           for r in queue:
               if 'youtube.com' or 'youtu.be' in r['url']:
+                  print("✅ found the reel")
                   pick = r
                   break
           
@@ -53,7 +54,7 @@ jobs:
               print("✅ No new reels. Exiting.")
               exit(0)
           
-          sc_match = re.search(r'/reel/([^/?]+)', pick['url'])
+          sc_match = re.search(r'/shorts/([^/?]+)', pick['url'])
           sc = sc_match.group(1) if sc_match else "unknown"
           user = pick.get('username', 'unknown')
           
