@@ -1,10 +1,10 @@
 {
   "queue": [
     {
-      "url": "https://youtube.com/shorts/yHSblTs61g8?si=vpEu68tXxu8KGd7X",
+      "url": "https://youtube.com/shorts/mLi72OBzQF4?si=AVEP4Q2Zf4WmJ7WP",
       "username": "shorts",
       "notes": "Auto-added from reels_source.txt",
-      "added_at": "2026-07-07T09:36:50.266623+00:00"
+      "added_at": "2026-07-08T06:20:55.861887+00:00"
     }
   ],
   "processed": [
@@ -24,7 +24,7 @@
   "metadata": {
     "total_queued": 1,
     "total_processed": 0,
-    "last_run": "2026-07-07T09:36:50.266711+00:00",
+    "last_run": "2026-07-08T06:20:55.861979+00:00",
     "next_scheduled": null
   }
 }
