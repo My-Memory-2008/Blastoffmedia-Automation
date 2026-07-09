@@ -105,13 +105,19 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Configure Git LFS to track video files specifically inside the folder
+          # 1. Configure Git LFS and add the attributes configuration rules first
           git lfs track "blastoffmedia_outputs/*.mp4"
           git add .gitattributes
           
-          # 🟢 FIX: Force Git to look at all file types (both .mp4 and .json) by utilizing -A (all updates)
-          git add -A blastoffmedia_outputs/
+          # 2. Explicitly add the JSON file on its own standard git tracking layer
+          git add blastoffmedia_outputs/seo_metadata.json
           
-          # Ensure git registers modifications across both content profiles
+          # 3. Force add the media asset through the LFS filter layer 
+          git add blastoffmedia_outputs/edited_source_only.mp4
+          
+          # 4. Use global dot indexing to catch all untracked changes across both files simultaneously
+          git add .
+          
+          # Ensure git registers modifications across both content profiles and force push to the target tracking head
           git commit -m "Update: Latest Kaggle video and JSON automation output via LFS" || echo "No changes to commit"
           git push origin HEAD:${{ github.ref }}
