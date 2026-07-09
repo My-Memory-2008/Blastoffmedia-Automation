@@ -21,244 +21,6 @@ jobs:
         with:
           python-version: '3.10'
 
-      # # 3. Install lightweight dependencies
-      # - name: Install Dependencies
-      #   run: |
-      #    pip install requests openai yt-dlp requests[socks]
-      #    python -m pip install --upgrade pip
-      #    pip install playwright
-      #    playwright install chromium --with-deps
-         
-
-      # # 4. Process queue → generate pipeline_data.json & push updates back to repo
-      # - name: Process Queue, Generate Pipeline & Push Changes
-      #   run: |
-      #     python3 << 'EOF'
-      #     import os, json, re
-      #     from datetime import datetime, timezone
-          
-      #     if not os.path.exists('reel_queue.json'):
-      #         print("❌ Critical Error: reel_queue.json does not exist in the root directory!")
-      #         exit(1)
-              
-      #     with open('reel_queue.json', 'r') as f:
-      #         data = json.load(f)
-          
-      #     queue = data.get('queue', [])
-      #     processed = {p['url'].strip().lower() for p in data.get('processed', []) if 'url' in p}
-          
-      #     pick = None
-      #     for r in queue:
-      #         url_lower = r['url'].strip().lower()
-      #         if any(x in url_lower for x in ['youtube.com', 'youtu.be', 'shorts']):
-      #             if url_lower not in processed:
-      #                 pick = r
-      #                 break
-          
-      #     if not pick:
-      #         print("✅ No new YouTube videos or shorts found. Exiting.")
-      #         exit(0)
-          
-      #     # Extract the core YouTube video/short ID string
-      #     sc_match = re.search(r'(?:shorts/|v=|be/)([^/?&]+)', pick['url'])
-      #     sc = sc_match.group(1) if sc_match else "unknown"
-      #     user = pick.get('username', 'unknown')
-          
-      #     # Force create and save the pipeline_data.json payload file
-      #     with open('pipeline_data.json', 'w') as f:
-      #         json.dump({
-      #            "reel_url": pick['url'], 
-      #            "shortcode": sc, 
-      #            "username": user,
-      #            "script_text": " ",
-      #            "youtube_title": "AI Hack #shorts",
-      #            "youtube_description": f"Tip from @{user}. #ai",
-      #            "youtube_tags": ["AI","Shorts"]
-      #         }, f, indent=2)
-      #         f.flush()
-      #         os.fsync(f.fileno())
-          
-      #     # Append to processed and update reel_queue.json file variables
-      #     data.setdefault('processed', []).append({
-      #         "url": pick['url'], "username": user,
-      #         "status": "in_progress", "started_at": datetime.now(timezone.utc).isoformat()
-      #     })
-      #     with open('reel_queue.json', 'w') as f:
-      #         json.dump(data, f, indent=2)
-      #         f.flush()
-      #         os.fsync(f.fileno())
-              
-      #     print(f"✅ Data processing complete inside runner storage for: {pick['url']}")
-      #     EOF
-
-      #     # --- GIT COMMIT AND PUSH ENGINE BLOCK ---
-      #     echo "🔄 Setting up local git environment configurations..."
-      #     git config --global user.name "github-actions[bot]"
-      #     git config --global user.email "41898282+github-actions[bot]@://github.com"
-          
-      #     # Track the target payload configurations explicitly
-      #     git add reel_queue.json pipeline_data.json
-          
-      #     # Verify modifications and push out to repository workspace root
-      #     if ! git diff-index --quiet HEAD; then
-      #       echo "📝 Committing file adjustments to branch history..."
-      #       git commit -m "chore: cycle queue allocations and update processing profiles [skip ci]"
-      #       git push origin HEAD:${{ github.ref }}
-      #       echo "🚀 File updates successfully synchronized back into Github repository workspace root!"
-      #     else
-      #       echo "ℹ️ Workspace files are identical to repository tracking. Push sequence bypassed."
-      #     fi
-
-
-      # # ====================================================================
-      # # ROBUST ROUTINE: HEADED PLAYWRIGHT VIRTUAL SCREEN BYPASS (NO COOKIES)
-      # # ====================================================================
-
-      # # 4a. Initialize a Virtual Screen Buffer (Xvfb) so Chromium can run with headless=false in the cloud
-      # - name: Initialize Virtual Display Framebuffer
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y xvfb
-      #     # Start Xvfb background display port 99
-      #     Xvfb :99 -screen 0 1280x720x24 &
-      #     echo "DISPLAY=:99" >> $GITHUB_ENV
-      #     sleep 3
-
-      # # 4b. Use genuine browser simulation to process y2mate completely safely
-      # - name: Cloud Download Video Asset via Playwright Simulation
-      #   env:
-      #     DISPLAY: :99
-      #   run: |
-      #     python3 << 'EOF'
-      #     import json, os, subprocess, asyncio, shutil
-      #     from playwright.async_api import async_playwright
-          
-      #     async def run_stealth_download():
-      #         # 1. Extraction safety checks
-      #         if not os.path.exists('pipeline_data.json'):
-      #             print("ℹ️ pipeline_data.json missing. Skipping download cycle.")
-      #             return
-                  
-      #         with open('pipeline_data.json', 'r') as f:
-      #             pipeline = json.load(f)
-              
-      #         reel_url = pipeline.get('reel_url')
-      #         shortcode = pipeline.get('shortcode', 'downloaded_reel')
-              
-      #         if not reel_url or "unknown" in reel_url:
-      #             print("❌ Missing video URL target path inside JSON queue.")
-      #             return
-              
-      #         # CRITICAL AUTOMATED RESET: Wipes out previous video file frames completely
-      #         if os.path.exists('downloads'):
-      #             shutil.rmtree('downloads')
-      #             print("🧹 Storage Reset: Prior video files completely purged from memory workspace.")
-                  
-      #         os.makedirs('downloads', exist_ok=True)
-      #         output_path = f"downloads/reelforyoutube.mp4"
-              
-      #         print(f"🚀 Launching real browser instance to download from v22.www-y2mate.com: {reel_url}")
-              
-      #         video_stream_url = None
-      #         download_success = False
-              
-      #         async with async_playwright() as p:
-      #             browser = await p.chromium.launch(
-      #                 headless=False,
-      #                 args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
-      #             )
-                  
-      #             context = await browser.new_context(
-      #                 viewport={'width': 1280, 'height': 800},
-      #                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      #                 accept_downloads=True
-      #             )
-                  
-      #             # Array handling fix matching context layout structure
-      #             pages = context.pages
-      #             page = pages[0] if len(pages) > 0 else await context.new_page()
-                  
-      #             # Automatically handle and close any advertising popups thrown during clicks
-      #             context.on('page', lambda popup: asyncio.create_task(popup.close()) if print("🛡️ Suppressed ad network popup window.") or True else None)
-      #             await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads"]) else route.abort())
-                  
-      #             print("🌐 Loading downloader frontend...")
-      #             await page.goto('https://www-y2mate.com', wait_until='domcontentloaded', timeout=60000)
-      #             await page.wait_for_timeout(2000)
-                  
-      #             # Locate textbox, double-click, and fill with the dynamic video URL (reel_url variable)
-      #             textbox = page.get_by_role('textbox', name='Search or paste link here...')
-      #             await textbox.wait_for(state='visible', timeout=30000)
-      #             await textbox.dblclick()
-      #             await textbox.fill(reel_url)
-      #             await textbox.press('Enter')
-      #             print("✏️ Link entered and search submitted.")
-                  
-      #             try:
-      #                 # Isolate the dynamic widget iframe frame matching your codegen script
-      #                 widgetIframe = page.frame_locator('#widgetv2Api')
-
-      #                 # Switch to the Video tab inside the iframe
-      #                 print("🗂️ Switching to Video tab...")
-      #                 await widgetIframe.get_by_role('link', name='Video').click()
-      #                 await page.wait_for_timeout(1000)
-
-      #                 # Click the primary resolution download button inside the iframe
-      #                 print("👆 Clicking initial conversion row button...")
-      #                 await widgetIframe.get_by_role('row', name='1080p (.mp4) Auto  Download').get_by_role('button').click()
-
-      #                 # Wait for the server-side conversion and target the final Download button inside the iframe
-      #                 print("⏳ Waiting for backend to compile stream and clicking final Download link...")
-      #                 finalDownloadLink = widgetIframe.get_by_role('link', name='Download')
-                      
-      #                 # FIX APPLIED HERE: Changed from camelCase waitFor to Python style wait_for
-      #                 await finalDownloadLink.wait_for(state='visible', timeout=45000)
-
-      #                 # Trigger physical browser stream click and expect file download info
-      #                 print("🎯 Native Playwright event listener active. Triggering physical browser stream click...")
-      #                 async with page.expect_download(timeout=30000) as download_info:
-      #                     await finalDownloadLink.click()
-                      
-      #                 download = await download_info.value
-      #                 await download.save_as(output_path)
-      #                 download_success = True
-      #                 print("✅ Successfully captured file directly via native browser download event.")
-                      
-      #             except Exception as event_error:
-      #                 print(f"⚠️ Native browser download event failed or timed out: ({event_error})")
-                              
-      #             await browser.close()
-              
-      #         if os.path.exists(output_path):
-      #             file_size = os.path.getsize(output_path)
-      #             if file_size > 50000:
-      #                 print(f"🎉 Real video asset captured successfully! Size: {file_size / (1024*1024):.2f} MB")
-      #             else:
-      #                 os.remove(output_path)
-      #                 print("❌ Download output contains light text metrics instead of video data. Dropping placeholder.")
-      #         else:
-      #             print("❌ Core system disk space rejected file creation execution.")
-          
-      #     asyncio.run(run_stealth_download())
-      #     EOF
-
-
-      # # 4c. Push the video file back to the repository root so it becomes visible on github
-      # - name: Commit and Push Downloaded Video to Repository Root
-      #   run: |
-      #     git config --global user.name "Automated Curation Bot"
-      #     git config --global user.email "bot@contentfactory.internal"
-          
-      #     # Force add the downloads folder and the mp4 file
-      #     git add downloads/reelforyoutube.mp4
-          
-      #     # Commit the changes. The "|| echo" prevents the workflow from breaking if nothing changed.
-      #     git commit -m "Saved raw video stream to workspace root [skip ci]" || echo "No new changes to commit"
-          
-      #     # Push the changes live to your main branch
-      #     git push
-
-
       # 3. Install lightweight dependencies
       - name: Install Dependencies
         run: |
@@ -266,9 +28,6 @@ jobs:
          python -m pip install --upgrade pip
          pip install playwright
          playwright install chromium --with-deps
-         # Install and initialize Git LFS in the system runner
-         sudo apt-get update && sudo apt-get install -y git-lfs
-         git lfs install
          
 
       # 4. Process queue → generate pipeline_data.json & push updates back to repo
@@ -340,8 +99,8 @@ jobs:
           # Track the target payload configurations explicitly
           git add reel_queue.json pipeline_data.json
           
-          # 🟢 FIX: Appended '-- reel_queue.json pipeline_data.json' so git only checks these two files here
-          if ! git diff-index --quiet HEAD -- reel_queue.json pipeline_data.json; then
+          # Verify modifications and push out to repository workspace root
+          if ! git diff-index --quiet HEAD; then
             echo "📝 Committing file adjustments to branch history..."
             git commit -m "chore: cycle queue allocations and update processing profiles [skip ci]"
             git push origin HEAD:${{ github.ref }}
@@ -365,22 +124,17 @@ jobs:
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
-
-      
       # 4b. Use genuine browser simulation to process y2mate completely safely
       - name: Cloud Download Video Asset via Playwright Simulation
         env:
           DISPLAY: :99
         run: |
-          # 🟢 FIX: Install and initialize Git LFS before the download starts
-          sudo apt-get install git-lfs
-          git lfs install
-
           python3 << 'EOF'
           import json, os, subprocess, asyncio, shutil
           from playwright.async_api import async_playwright
           
           async def run_stealth_download():
+              # 1. Extraction safety checks
               if not os.path.exists('pipeline_data.json'):
                   print("ℹ️ pipeline_data.json missing. Skipping download cycle.")
                   return
@@ -395,6 +149,7 @@ jobs:
                   print("❌ Missing video URL target path inside JSON queue.")
                   return
               
+              # CRITICAL AUTOMATED RESET: Wipes out previous video file frames completely
               if os.path.exists('downloads'):
                   shutil.rmtree('downloads')
                   print("🧹 Storage Reset: Prior video files completely purged from memory workspace.")
@@ -419,9 +174,11 @@ jobs:
                       accept_downloads=True
                   )
                   
+                  # Array handling fix matching context layout structure
                   pages = context.pages
                   page = pages[0] if len(pages) > 0 else await context.new_page()
                   
+                  # Automatically handle and close any advertising popups thrown during clicks
                   context.on('page', lambda popup: asyncio.create_task(popup.close()) if print("🛡️ Suppressed ad network popup window.") or True else None)
                   await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads"]) else route.abort())
                   
@@ -429,6 +186,7 @@ jobs:
                   await page.goto('https://www-y2mate.com', wait_until='domcontentloaded', timeout=60000)
                   await page.wait_for_timeout(2000)
                   
+                  # Locate textbox, double-click, and fill with the dynamic video URL (reel_url variable)
                   textbox = page.get_by_role('textbox', name='Search or paste link here...')
                   await textbox.wait_for(state='visible', timeout=30000)
                   await textbox.dblclick()
@@ -437,19 +195,26 @@ jobs:
                   print("✏️ Link entered and search submitted.")
                   
                   try:
+                      # Isolate the dynamic widget iframe frame matching your codegen script
                       widgetIframe = page.frame_locator('#widgetv2Api')
+
+                      # Switch to the Video tab inside the iframe
                       print("🗂️ Switching to Video tab...")
                       await widgetIframe.get_by_role('link', name='Video').click()
                       await page.wait_for_timeout(1000)
 
+                      # Click the primary resolution download button inside the iframe
                       print("👆 Clicking initial conversion row button...")
                       await widgetIframe.get_by_role('row', name='1080p (.mp4) Auto  Download').get_by_role('button').click()
 
+                      # Wait for the server-side conversion and target the final Download button inside the iframe
                       print("⏳ Waiting for backend to compile stream and clicking final Download link...")
                       finalDownloadLink = widgetIframe.get_by_role('link', name='Download')
                       
+                      # FIX APPLIED HERE: Changed from camelCase waitFor to Python style wait_for
                       await finalDownloadLink.wait_for(state='visible', timeout=45000)
 
+                      # Trigger physical browser stream click and expect file download info
                       print("🎯 Native Playwright event listener active. Triggering physical browser stream click...")
                       async with page.expect_download(timeout=30000) as download_info:
                           await finalDownloadLink.click()
@@ -477,24 +242,259 @@ jobs:
           asyncio.run(run_stealth_download())
           EOF
 
+
       # 4c. Push the video file back to the repository root so it becomes visible on github
       - name: Commit and Push Downloaded Video to Repository Root
         run: |
           git config --global user.name "Automated Curation Bot"
           git config --global user.email "bot@contentfactory.internal"
           
-          # 🟢 FIX: Instruct Git LFS to track files inside the downloads folder
-          git lfs track "downloads/*.mp4"
-          git add .gitattributes
-
           # Force add the downloads folder and the mp4 file
           git add downloads/reelforyoutube.mp4
           
           # Commit the changes. The "|| echo" prevents the workflow from breaking if nothing changed.
-          git commit -m "Saved raw video stream to workspace root via Git LFS [skip ci]" || echo "No new changes to commit"
+          git commit -m "Saved raw video stream to workspace root [skip ci]" || echo "No new changes to commit"
           
           # Push the changes live to your main branch
           git push
+
+
+      # # 3. Install lightweight dependencies
+      # - name: Install Dependencies
+      #   run: |
+      #    pip install requests openai yt-dlp requests[socks]
+      #    python -m pip install --upgrade pip
+      #    pip install playwright
+      #    playwright install chromium --with-deps
+      #    # Install and initialize Git LFS in the system runner
+      #    sudo apt-get update && sudo apt-get install -y git-lfs
+      #    git lfs install
+         
+
+      # # 4. Process queue → generate pipeline_data.json & push updates back to repo
+      # - name: Process Queue, Generate Pipeline & Push Changes
+      #   run: |
+      #     python3 << 'EOF'
+      #     import os, json, re
+      #     from datetime import datetime, timezone
+          
+      #     if not os.path.exists('reel_queue.json'):
+      #         print("❌ Critical Error: reel_queue.json does not exist in the root directory!")
+      #         exit(1)
+              
+      #     with open('reel_queue.json', 'r') as f:
+      #         data = json.load(f)
+          
+      #     queue = data.get('queue', [])
+      #     processed = {p['url'].strip().lower() for p in data.get('processed', []) if 'url' in p}
+          
+      #     pick = None
+      #     for r in queue:
+      #         url_lower = r['url'].strip().lower()
+      #         if any(x in url_lower for x in ['youtube.com', 'youtu.be', 'shorts']):
+      #             if url_lower not in processed:
+      #                 pick = r
+      #                 break
+          
+      #     if not pick:
+      #         print("✅ No new YouTube videos or shorts found. Exiting.")
+      #         exit(0)
+          
+      #     # Extract the core YouTube video/short ID string
+      #     sc_match = re.search(r'(?:shorts/|v=|be/)([^/?&]+)', pick['url'])
+      #     sc = sc_match.group(1) if sc_match else "unknown"
+      #     user = pick.get('username', 'unknown')
+          
+      #     # Force create and save the pipeline_data.json payload file
+      #     with open('pipeline_data.json', 'w') as f:
+      #         json.dump({
+      #            "reel_url": pick['url'], 
+      #            "shortcode": sc, 
+      #            "username": user,
+      #            "script_text": " ",
+      #            "youtube_title": "AI Hack #shorts",
+      #            "youtube_description": f"Tip from @{user}. #ai",
+      #            "youtube_tags": ["AI","Shorts"]
+      #         }, f, indent=2)
+      #         f.flush()
+      #         os.fsync(f.fileno())
+          
+      #     # Append to processed and update reel_queue.json file variables
+      #     data.setdefault('processed', []).append({
+      #         "url": pick['url'], "username": user,
+      #         "status": "in_progress", "started_at": datetime.now(timezone.utc).isoformat()
+      #     })
+      #     with open('reel_queue.json', 'w') as f:
+      #         json.dump(data, f, indent=2)
+      #         f.flush()
+      #         os.fsync(f.fileno())
+              
+      #     print(f"✅ Data processing complete inside runner storage for: {pick['url']}")
+      #     EOF
+
+      #     # --- GIT COMMIT AND PUSH ENGINE BLOCK ---
+      #     echo "🔄 Setting up local git environment configurations..."
+      #     git config --global user.name "github-actions[bot]"
+      #     git config --global user.email "41898282+github-actions[bot]@://github.com"
+          
+      #     # Track the target payload configurations explicitly
+      #     git add reel_queue.json pipeline_data.json
+          
+      #     # 🟢 FIX: Appended '-- reel_queue.json pipeline_data.json' so git only checks these two files here
+      #     if ! git diff-index --quiet HEAD -- reel_queue.json pipeline_data.json; then
+      #       echo "📝 Committing file adjustments to branch history..."
+      #       git commit -m "chore: cycle queue allocations and update processing profiles [skip ci]"
+      #       git push origin HEAD:${{ github.ref }}
+      #       echo "🚀 File updates successfully synchronized back into Github repository workspace root!"
+      #     else
+      #       echo "ℹ️ Workspace files are identical to repository tracking. Push sequence bypassed."
+      #     fi
+
+
+      # # ====================================================================
+      # # ROBUST ROUTINE: HEADED PLAYWRIGHT VIRTUAL SCREEN BYPASS (NO COOKIES)
+      # # ====================================================================
+
+      # # 4a. Initialize a Virtual Screen Buffer (Xvfb) so Chromium can run with headless=false in the cloud
+      # - name: Initialize Virtual Display Framebuffer
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y xvfb
+      #     # Start Xvfb background display port 99
+      #     Xvfb :99 -screen 0 1280x720x24 &
+      #     echo "DISPLAY=:99" >> $GITHUB_ENV
+      #     sleep 3
+
+
+      
+      # # 4b. Use genuine browser simulation to process y2mate completely safely
+      # - name: Cloud Download Video Asset via Playwright Simulation
+      #   env:
+      #     DISPLAY: :99
+      #   run: |
+      #     # 🟢 FIX: Install and initialize Git LFS before the download starts
+      #     sudo apt-get install git-lfs
+      #     git lfs install
+
+      #     python3 << 'EOF'
+      #     import json, os, subprocess, asyncio, shutil
+      #     from playwright.async_api import async_playwright
+          
+      #     async def run_stealth_download():
+      #         if not os.path.exists('pipeline_data.json'):
+      #             print("ℹ️ pipeline_data.json missing. Skipping download cycle.")
+      #             return
+                  
+      #         with open('pipeline_data.json', 'r') as f:
+      #             pipeline = json.load(f)
+              
+      #         reel_url = pipeline.get('reel_url')
+      #         shortcode = pipeline.get('shortcode', 'downloaded_reel')
+              
+      #         if not reel_url or "unknown" in reel_url:
+      #             print("❌ Missing video URL target path inside JSON queue.")
+      #             return
+              
+      #         if os.path.exists('downloads'):
+      #             shutil.rmtree('downloads')
+      #             print("🧹 Storage Reset: Prior video files completely purged from memory workspace.")
+                  
+      #         os.makedirs('downloads', exist_ok=True)
+      #         output_path = f"downloads/reelforyoutube.mp4"
+              
+      #         print(f"🚀 Launching real browser instance to download from v22.www-y2mate.com: {reel_url}")
+              
+      #         video_stream_url = None
+      #         download_success = False
+              
+      #         async with async_playwright() as p:
+      #             browser = await p.chromium.launch(
+      #                 headless=False,
+      #                 args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
+      #             )
+                  
+      #             context = await browser.new_context(
+      #                 viewport={'width': 1280, 'height': 800},
+      #                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      #                 accept_downloads=True
+      #             )
+                  
+      #             pages = context.pages
+      #             page = pages[0] if len(pages) > 0 else await context.new_page()
+                  
+      #             context.on('page', lambda popup: asyncio.create_task(popup.close()) if print("🛡️ Suppressed ad network popup window.") or True else None)
+      #             await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads"]) else route.abort())
+                  
+      #             print("🌐 Loading downloader frontend...")
+      #             await page.goto('https://www-y2mate.com', wait_until='domcontentloaded', timeout=60000)
+      #             await page.wait_for_timeout(2000)
+                  
+      #             textbox = page.get_by_role('textbox', name='Search or paste link here...')
+      #             await textbox.wait_for(state='visible', timeout=30000)
+      #             await textbox.dblclick()
+      #             await textbox.fill(reel_url)
+      #             await textbox.press('Enter')
+      #             print("✏️ Link entered and search submitted.")
+                  
+      #             try:
+      #                 widgetIframe = page.frame_locator('#widgetv2Api')
+      #                 print("🗂️ Switching to Video tab...")
+      #                 await widgetIframe.get_by_role('link', name='Video').click()
+      #                 await page.wait_for_timeout(1000)
+
+      #                 print("👆 Clicking initial conversion row button...")
+      #                 await widgetIframe.get_by_role('row', name='1080p (.mp4) Auto  Download').get_by_role('button').click()
+
+      #                 print("⏳ Waiting for backend to compile stream and clicking final Download link...")
+      #                 finalDownloadLink = widgetIframe.get_by_role('link', name='Download')
+                      
+      #                 await finalDownloadLink.wait_for(state='visible', timeout=45000)
+
+      #                 print("🎯 Native Playwright event listener active. Triggering physical browser stream click...")
+      #                 async with page.expect_download(timeout=30000) as download_info:
+      #                     await finalDownloadLink.click()
+                      
+      #                 download = await download_info.value
+      #                 await download.save_as(output_path)
+      #                 download_success = True
+      #                 print("✅ Successfully captured file directly via native browser download event.")
+                      
+      #             except Exception as event_error:
+      #                 print(f"⚠️ Native browser download event failed or timed out: ({event_error})")
+                              
+      #             await browser.close()
+              
+      #         if os.path.exists(output_path):
+      #             file_size = os.path.getsize(output_path)
+      #             if file_size > 50000:
+      #                 print(f"🎉 Real video asset captured successfully! Size: {file_size / (1024*1024):.2f} MB")
+      #             else:
+      #                 os.remove(output_path)
+      #                 print("❌ Download output contains light text metrics instead of video data. Dropping placeholder.")
+      #         else:
+      #             print("❌ Core system disk space rejected file creation execution.")
+          
+      #     asyncio.run(run_stealth_download())
+      #     EOF
+
+      # # 4c. Push the video file back to the repository root so it becomes visible on github
+      # - name: Commit and Push Downloaded Video to Repository Root
+      #   run: |
+      #     git config --global user.name "Automated Curation Bot"
+      #     git config --global user.email "bot@contentfactory.internal"
+          
+      #     # 🟢 FIX: Instruct Git LFS to track files inside the downloads folder
+      #     git lfs track "downloads/*.mp4"
+      #     git add .gitattributes
+
+      #     # Force add the downloads folder and the mp4 file
+      #     git add downloads/reelforyoutube.mp4
+          
+      #     # Commit the changes. The "|| echo" prevents the workflow from breaking if nothing changed.
+      #     git commit -m "Saved raw video stream to workspace root via Git LFS [skip ci]" || echo "No new changes to commit"
+          
+      #     # Push the changes live to your main branch
+      #     git push
 
 
 
