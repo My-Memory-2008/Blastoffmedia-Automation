@@ -340,8 +340,8 @@ jobs:
           # Track the target payload configurations explicitly
           git add reel_queue.json pipeline_data.json
           
-          # Verify modifications and push out to repository workspace root
-          if ! git diff-index --quiet HEAD; then
+          # 🟢 FIX: Appended '-- reel_queue.json pipeline_data.json' so git only checks these two files here
+          if ! git diff-index --quiet HEAD -- reel_queue.json pipeline_data.json; then
             echo "📝 Committing file adjustments to branch history..."
             git commit -m "chore: cycle queue allocations and update processing profiles [skip ci]"
             git push origin HEAD:${{ github.ref }}
