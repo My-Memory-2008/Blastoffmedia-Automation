@@ -124,17 +124,154 @@ jobs:
           echo "DISPLAY=:99" >> $GITHUB_ENV
           sleep 3
 
+      # # 4b. Use genuine browser simulation to process y2mate completely safely
+      # - name: Cloud Download Video Asset via Playwright Simulation
+      #   env:
+      #     DISPLAY: :99
+      #   run: |
+      #     python3 << 'EOF'
+      #     import json, os, subprocess, asyncio, shutil
+      #     from playwright.async_api import async_playwright
+          
+      #     async def run_stealth_download():
+      #         # 1. Extraction safety checks
+      #         if not os.path.exists('pipeline_data.json'):
+      #             print("ℹ️ pipeline_data.json missing. Skipping download cycle.")
+      #             return
+                  
+      #         with open('pipeline_data.json', 'r') as f:
+      #             pipeline = json.load(f)
+              
+      #         reel_url = pipeline.get('reel_url')
+      #         shortcode = pipeline.get('shortcode', 'downloaded_reel')
+              
+      #         if not reel_url or "unknown" in reel_url:
+      #             print("❌ Missing video URL target path inside JSON queue.")
+      #             return
+              
+      #         # CRITICAL AUTOMATED RESET: Wipes out previous video file frames completely
+      #         if os.path.exists('downloads'):
+      #             shutil.rmtree('downloads')
+      #             print("🧹 Storage Reset: Prior video files completely purged from memory workspace.")
+                  
+      #         os.makedirs('downloads', exist_ok=True)
+      #         output_path = f"downloads/reelforyoutube.mp4"
+              
+      #         print(f"🚀 Launching real browser instance to download from v22.www-y2mate.com: {reel_url}")
+              
+      #         video_stream_url = None
+      #         download_success = False
+              
+      #         async with async_playwright() as p:
+      #             browser = await p.chromium.launch(
+      #                 headless=False,
+      #                 args=["--disable-blink-features=AutomationControlled", "--no-sandbox"]
+      #             )
+                  
+      #             context = await browser.new_context(
+      #                 viewport={'width': 1280, 'height': 800},
+      #                 user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      #                 accept_downloads=True
+      #             )
+                  
+      #             # Array handling fix matching context layout structure
+      #             pages = context.pages
+      #             page = pages[0] if len(pages) > 0 else await context.new_page()
+                  
+      #             # Automatically handle and close any advertising popups thrown during clicks
+      #             context.on('page', lambda popup: asyncio.create_task(popup.close()) if print("🛡️ Suppressed ad network popup window.") or True else None)
+      #             await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads"]) else route.abort())
+                  
+      #             print("🌐 Loading downloader frontend...")
+      #             await page.goto('https://www-y2mate.com', wait_until='domcontentloaded', timeout=60000)
+      #             await page.wait_for_timeout(2000)
+                  
+      #             # Locate textbox, double-click, and fill with the dynamic video URL (reel_url variable)
+      #             textbox = page.get_by_role('textbox', name='Search or paste link here...')
+      #             await textbox.wait_for(state='visible', timeout=30000)
+      #             await textbox.dblclick()
+      #             await textbox.fill(reel_url)
+      #             await textbox.press('Enter')
+      #             print("✏️ Link entered and search submitted.")
+                  
+      #             try:
+      #                 # Isolate the dynamic widget iframe frame matching your codegen script
+      #                 widgetIframe = page.frame_locator('#widgetv2Api')
+
+      #                 # Switch to the Video tab inside the iframe
+      #                 print("🗂️ Switching to Video tab...")
+      #                 await widgetIframe.get_by_role('link', name='Video').click()
+      #                 await page.wait_for_timeout(1000)
+
+      #                 # Click the primary resolution download button inside the iframe
+      #                 print("👆 Clicking initial conversion row button...")
+      #                 await widgetIframe.get_by_role('row', name='1080p (.mp4) Auto  Download').get_by_role('button').click()
+
+      #                 # Wait for the server-side conversion and target the final Download button inside the iframe
+      #                 print("⏳ Waiting for backend to compile stream and clicking final Download link...")
+      #                 finalDownloadLink = widgetIframe.get_by_role('link', name='Download')
+                      
+      #                 # FIX APPLIED HERE: Changed from camelCase waitFor to Python style wait_for
+      #                 await finalDownloadLink.wait_for(state='visible', timeout=45000)
+
+      #                 # Trigger physical browser stream click and expect file download info
+      #                 print("🎯 Native Playwright event listener active. Triggering physical browser stream click...")
+      #                 async with page.expect_download(timeout=30000) as download_info:
+      #                     await finalDownloadLink.click()
+                      
+      #                 download = await download_info.value
+      #                 await download.save_as(output_path)
+      #                 download_success = True
+      #                 print("✅ Successfully captured file directly via native browser download event.")
+                      
+      #             except Exception as event_error:
+      #                 print(f"⚠️ Native browser download event failed or timed out: ({event_error})")
+                              
+      #             await browser.close()
+              
+      #         if os.path.exists(output_path):
+      #             file_size = os.path.getsize(output_path)
+      #             if file_size > 50000:
+      #                 print(f"🎉 Real video asset captured successfully! Size: {file_size / (1024*1024):.2f} MB")
+      #             else:
+      #                 os.remove(output_path)
+      #                 print("❌ Download output contains light text metrics instead of video data. Dropping placeholder.")
+      #         else:
+      #             print("❌ Core system disk space rejected file creation execution.")
+          
+      #     asyncio.run(run_stealth_download())
+      #     EOF
+
+
+      # # 4c. Push the video file back to the repository root so it becomes visible on github
+      # - name: Commit and Push Downloaded Video to Repository Root
+      #   run: |
+      #     git config --global user.name "Automated Curation Bot"
+      #     git config --global user.email "bot@contentfactory.internal"
+          
+      #     # Force add the downloads folder and the mp4 file
+      #     git add downloads/reelforyoutube.mp4
+          
+      #     # Commit the changes. The "|| echo" prevents the workflow from breaking if nothing changed.
+      #     git commit -m "Saved raw video stream to workspace root [skip ci]" || echo "No new changes to commit"
+          
+      #     # Push the changes live to your main branch
+      #     git push
+
       # 4b. Use genuine browser simulation to process y2mate completely safely
       - name: Cloud Download Video Asset via Playwright Simulation
         env:
           DISPLAY: :99
         run: |
+          # 🟢 FIX: Install and initialize Git LFS before the download starts
+          sudo apt-get install git-lfs
+          git lfs install
+
           python3 << 'EOF'
           import json, os, subprocess, asyncio, shutil
           from playwright.async_api import async_playwright
           
           async def run_stealth_download():
-              # 1. Extraction safety checks
               if not os.path.exists('pipeline_data.json'):
                   print("ℹ️ pipeline_data.json missing. Skipping download cycle.")
                   return
@@ -149,7 +286,6 @@ jobs:
                   print("❌ Missing video URL target path inside JSON queue.")
                   return
               
-              # CRITICAL AUTOMATED RESET: Wipes out previous video file frames completely
               if os.path.exists('downloads'):
                   shutil.rmtree('downloads')
                   print("🧹 Storage Reset: Prior video files completely purged from memory workspace.")
@@ -174,11 +310,9 @@ jobs:
                       accept_downloads=True
                   )
                   
-                  # Array handling fix matching context layout structure
                   pages = context.pages
                   page = pages[0] if len(pages) > 0 else await context.new_page()
                   
-                  # Automatically handle and close any advertising popups thrown during clicks
                   context.on('page', lambda popup: asyncio.create_task(popup.close()) if print("🛡️ Suppressed ad network popup window.") or True else None)
                   await page.route("**/*", lambda route: route.continue_() if not any(x in route.request.url for x in ["googlesyndication", "doubleclick", "adservice", "popads"]) else route.abort())
                   
@@ -186,7 +320,6 @@ jobs:
                   await page.goto('https://www-y2mate.com', wait_until='domcontentloaded', timeout=60000)
                   await page.wait_for_timeout(2000)
                   
-                  # Locate textbox, double-click, and fill with the dynamic video URL (reel_url variable)
                   textbox = page.get_by_role('textbox', name='Search or paste link here...')
                   await textbox.wait_for(state='visible', timeout=30000)
                   await textbox.dblclick()
@@ -195,26 +328,19 @@ jobs:
                   print("✏️ Link entered and search submitted.")
                   
                   try:
-                      # Isolate the dynamic widget iframe frame matching your codegen script
                       widgetIframe = page.frame_locator('#widgetv2Api')
-
-                      # Switch to the Video tab inside the iframe
                       print("🗂️ Switching to Video tab...")
                       await widgetIframe.get_by_role('link', name='Video').click()
                       await page.wait_for_timeout(1000)
 
-                      # Click the primary resolution download button inside the iframe
                       print("👆 Clicking initial conversion row button...")
                       await widgetIframe.get_by_role('row', name='1080p (.mp4) Auto  Download').get_by_role('button').click()
 
-                      # Wait for the server-side conversion and target the final Download button inside the iframe
                       print("⏳ Waiting for backend to compile stream and clicking final Download link...")
                       finalDownloadLink = widgetIframe.get_by_role('link', name='Download')
                       
-                      # FIX APPLIED HERE: Changed from camelCase waitFor to Python style wait_for
                       await finalDownloadLink.wait_for(state='visible', timeout=45000)
 
-                      # Trigger physical browser stream click and expect file download info
                       print("🎯 Native Playwright event listener active. Triggering physical browser stream click...")
                       async with page.expect_download(timeout=30000) as download_info:
                           await finalDownloadLink.click()
@@ -242,18 +368,21 @@ jobs:
           asyncio.run(run_stealth_download())
           EOF
 
-
       # 4c. Push the video file back to the repository root so it becomes visible on github
       - name: Commit and Push Downloaded Video to Repository Root
         run: |
           git config --global user.name "Automated Curation Bot"
           git config --global user.email "bot@contentfactory.internal"
           
+          # 🟢 FIX: Instruct Git LFS to track files inside the downloads folder
+          git lfs track "downloads/*.mp4"
+          git add .gitattributes
+
           # Force add the downloads folder and the mp4 file
           git add downloads/reelforyoutube.mp4
           
           # Commit the changes. The "|| echo" prevents the workflow from breaking if nothing changed.
-          git commit -m "Saved raw video stream to workspace root [skip ci]" || echo "No new changes to commit"
+          git commit -m "Saved raw video stream to workspace root via Git LFS [skip ci]" || echo "No new changes to commit"
           
           # Push the changes live to your main branch
           git push
