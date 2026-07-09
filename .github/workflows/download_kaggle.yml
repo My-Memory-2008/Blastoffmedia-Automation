@@ -16,7 +16,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Kaggle CLI
-        run: pip install kaggle
+        run: |
+          pip install kaggle
+          sudo apt-get install git-lfs
+          git lfs install
 
       - name: Download Latest Video and JSON
         env:
@@ -38,11 +41,16 @@ jobs:
           # 4. Clean up the temporary folder
           rm -rf temp_download
 
-      - name: Commit and Push Changes to Repo Root
+      - name: Commit and Push Changes using Git LFS
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@://github.com"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Configure Git LFS to track video files
+          git lfs track "*.mp4"
+          git add .gitattributes
+          
           # Add the new folder, commit, and push
           git add blastoffmedia_outputs/
-          git commit -m "Update: Latest Kaggle video and JSON automation output" || echo "No changes to commit"
+          git commit -m "Update: Latest Kaggle video and JSON automation output via LFS" || echo "No changes to commit"
           git push
