@@ -4,7 +4,7 @@ import sys
 import time
 import datetime
 import asyncio
-import requests
+
 from kaggle_secrets import UserSecretsClient
 
 # 1. DEPENDENCY AUTOPREPARATION
@@ -51,13 +51,9 @@ except Exception as e:
     print(f"❌ Connection error: {e}")
 
 
-print(
-"✅ **Kaggle Execution Complete!**\n\n"
-"Your video and SEO JSON data are ready for download and copying seo data.\n\n"
-f"🔗 [Click here to open Kaggle Output]({notebook_url})"
-)
+print("✅ **Kaggle Execution Complete!**\n\n""Your video and SEO JSON data are ready for download and copying seo data.\n\n"f"🔗 [Click here to open Kaggle Output]({notebook_url})")
 
     
     
     
-    print("✅  Upload to Message to mobile phone successfull.././././")
+print("✅  Upload to Message to mobile phone successfull.././././")
