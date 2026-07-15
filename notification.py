@@ -5,7 +5,7 @@ import time
 import datetime
 import asyncio
 
-from kaggle_secrets import UserSecretsClient
+
 
 # 1. DEPENDENCY AUTOPREPARATION
 try:
