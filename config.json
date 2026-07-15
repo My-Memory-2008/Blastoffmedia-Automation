@@ -12,6 +12,10 @@
     "workflow_file": "download_kaggle.yml"
   },
   {
+    "time_ist": "12:00",
+    "workflow_file": "notification.yml"
+  },
+  {
     "time_ist": "14:15",
     "workflow_file": "populate_queue.yml"
   },
@@ -22,5 +26,9 @@
   {
     "time_ist": "14:40",
     "workflow_file": "download_kaggle.yml"
-  }
+  },
+  {
+    "time_ist": "14:45",
+    "workflow_file": "notification.yml"
+  },
 ]
