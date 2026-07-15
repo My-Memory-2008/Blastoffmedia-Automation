@@ -1,4 +1,4 @@
-name: Master Time Scheduler (Loop Engine)
+name: Notification to phone 
 on:
   workflow_dispatch: # Allows manual activation from the Actions tab panel
 
